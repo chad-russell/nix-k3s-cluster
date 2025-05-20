@@ -1,0 +1,22 @@
+version: 1
+keys:
+  - &admin_key age12lhj5rwp25uxpp5dkaa6z998m7mmwcg7dequc46a68x46zdza4sqa7uezf
+creation_rules:
+  # Encrypt *.yaml files in secrets/ for admin and any host tagged with 'hosts_group'
+  - path_regex: .*/secrets/.*\.yaml$
+    encrypted_regex: ^(data|stringData)$
+    pgp: "" # Clear PGP if only using age
+    key_groups:
+      - age:
+          - *admin_key
+        # Add more keys/groups as needed, e.g. a group for all hosts
+
+  # Specific rule for the k3s agent node token
+  - path_regex: .*/secrets/k3s-agent-node-token$
+    pgp: ""
+    # Initially, this might only be encrypted for admin, or an empty group.
+    # Host keys will be added to this rule as nodes are provisioned.
+    key_groups:
+      - age:
+          - *admin_key
+        # Host keys will be added here, e.g. *core2_key, *core3_key
