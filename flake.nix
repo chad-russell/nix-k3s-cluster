@@ -24,13 +24,11 @@
           inherit system specialArgs;
           modules = extraModules ++ [
             ./modules/common-base.nix
-            sops-nix.nixosModules.sops # sops is needed for both stages (host key management for bootstrap)
+            sops-nix.nixosModules.sops
             {
               networking.hostName = hostname;
-              # Ensure sops is enabled and default key path is set for bootstrap stage
-              sops.defaultSopsFile = ""; # No default secrets file for bootstrap
               sops.age.keyFile = "/etc/sops/age/key.txt";
-              sops.age.generateKey = false; # We will generate manually
+              sops.age.generateKey = false;
             }
           ];
         };
@@ -59,6 +57,7 @@
                     disko.nixosModules.disko
                     (./modules + "/${node.name}/disko.nix")
                     # Minimal modules for bootstrap
+                    ({ config, ... }: { sops.defaultSopsFile = ""; })
                   ];
                   specialArgs = { role = node.role; };
                 };
