@@ -2,6 +2,7 @@ version: 1
 keys:
   - &admin_key age12lhj5rwp25uxpp5dkaa6z998m7mmwcg7dequc46a68x46zdza4sqa7uezf
   - &core1_key age1262ecjgugtm72dcdzxzk5gdeays4rxnedqrv280lvkfpwz5q5pnqdgc3ar
+  - &core2_key age1au4hsdvem84xgzf7tr2ckpwx2us4hnrkdy2ty45fc9q2exk8rfkq4x46jl
 creation_rules:
   # Encrypt *.yaml files in secrets/ for admin and any host tagged with 'hosts_group'
   - path_regex: .*/secrets/.*\.yaml$
@@ -20,4 +21,5 @@ creation_rules:
     key_groups:
       - age:
           - *admin_key
+          - *core2_key
         # Host keys will be added here, e.g. *core2_key, *core3_key
