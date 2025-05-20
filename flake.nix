@@ -27,7 +27,7 @@
             sops-nix.nixosModules.sops # sops is needed for both stages (host key management for bootstrap)
             {
               networking.hostName = hostname;
-              # Ensure sops is enabled and default key path is set for bootstrap stage
+              sops.defaultSopsFile = null; # Explicitly set to null
               sops.age.keyFile = "/etc/sops/age/key.txt";
               sops.age.generateKey = false; # We will generate manually
             }
