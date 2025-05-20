@@ -22,6 +22,7 @@
 
   sops.secrets."k3s-agent-node-token" = lib.mkIf (config.services.k3s.role == "agent") {
     sopsFile = "${flakeRoot}/secrets/k3s-agent-node-token";
+    format = "binary";
     # This will expect an encrypted file at ./secrets/k3s-agent-node-token
     # relative to your flake.nix file if you don't specify a `source`.
     # Or, more explicitly, you can set:
