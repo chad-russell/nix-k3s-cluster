@@ -58,7 +58,7 @@
                     (./modules + "/${node.name}/disko.nix")
                     # Minimal modules for bootstrap
                   ];
-                  specialArgs = { role = node.role; };
+                  specialArgs = { role = node.role; flakeRoot = ./.; };
                 };
               }
               {
@@ -71,7 +71,7 @@
                     (./modules + "/${node.name}/disko.nix")
                     ./modules/k3s-node.nix
                   ];
-                  specialArgs = { role = node.role; };
+                  specialArgs = { role = node.role; flakeRoot = ./.; };
                 };
               }
             ]

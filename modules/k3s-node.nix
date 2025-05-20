@@ -1,5 +1,5 @@
 # k3s-node.nix: Common configuration for all k3s nodes
-{ config, pkgs, lib, role, ... }:
+{ config, pkgs, lib, role, flakeRoot, ... }:
 
 {
   imports = [ ];
@@ -21,7 +21,7 @@
   };
 
   sops.secrets."k3s-agent-node-token" = lib.mkIf (config.services.k3s.role == "agent") {
-    sopsFile = ../../secrets/k3s-agent-node-token;
+    sopsFile = "${flakeRoot}/secrets/k3s-agent-node-token";
     # This will expect an encrypted file at ./secrets/k3s-agent-node-token
     # relative to your flake.nix file if you don't specify a `source`.
     # Or, more explicitly, you can set:
