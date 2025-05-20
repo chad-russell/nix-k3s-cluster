@@ -57,7 +57,6 @@
                     disko.nixosModules.disko
                     (./modules + "/${node.name}/disko.nix")
                     # Minimal modules for bootstrap
-                    ({ config, ... }: { sops.defaultSopsFile = ""; })
                   ];
                   specialArgs = { role = node.role; };
                 };
@@ -71,7 +70,6 @@
                     disko.nixosModules.disko
                     (./modules + "/${node.name}/disko.nix")
                     ./modules/k3s-node.nix
-                    ({ config, ... }: { sops.defaultSopsFile = null; })
                   ];
                   specialArgs = { role = node.role; };
                 };
