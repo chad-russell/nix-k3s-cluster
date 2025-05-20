@@ -13,7 +13,7 @@ creation_rules:
         # Add more keys/groups as needed, e.g. a group for all hosts
 
   # Specific rule for the k3s agent node token
-  - path_regex: .*/secrets/k3s-agent-node-token$
+  - path_regex: ^secrets/k3s-agent-node-token$
     pgp: ""
     # Initially, this might only be encrypted for admin, or an empty group.
     # Host keys will be added to this rule as nodes are provisioned.
