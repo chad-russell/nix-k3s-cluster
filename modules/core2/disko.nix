@@ -47,26 +47,26 @@
         };
       };
 
-      # Data disk (ext4 for Longhorn)
-      data = {
-        device = "/dev/sda";
-        type = "disk";
-        content = {
-          type = "gpt";
-          partitions = {
-            longhorn = {
-              size = "100%";
-              type = "8300";
-              content = {
-                type = "filesystem";
-                format = "ext4";
-                mountpoint = "/var/lib/longhorn";
-                mountOptions = [ "noatime" ];
-              };
-            };
-          };
-        };
-      };
+      # # Data disk (ext4 for Longhorn)
+      # data = {
+      #   device = "/dev/sda";
+      #   type = "disk";
+      #   content = {
+      #     type = "gpt";
+      #     partitions = {
+      #       longhorn = {
+      #         size = "100%";
+      #         type = "8300";
+      #         content = {
+      #           type = "filesystem";
+      #           format = "ext4";
+      #           mountpoint = "/var/lib/longhorn";
+      #           mountOptions = [ "noatime" ];
+      #         };
+      #       };
+      #     };
+      #   };
+      # };
     };
   };
 }
