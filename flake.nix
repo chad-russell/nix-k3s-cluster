@@ -28,7 +28,6 @@
             {
               networking.hostName = hostname;
               # Ensure sops is enabled and default key path is set for bootstrap stage
-              sops.defaultSopsFile = ""; # No default secrets file for bootstrap
               sops.age.keyFile = "/etc/sops/age/key.txt";
               sops.age.generateKey = false; # We will generate manually
             }
