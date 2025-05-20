@@ -71,6 +71,7 @@
                     disko.nixosModules.disko
                     (./modules + "/${node.name}/disko.nix")
                     ./modules/k3s-node.nix
+                    ({ config, ... }: { sops.defaultSopsFile = null; })
                   ];
                   specialArgs = { role = node.role; };
                 };
