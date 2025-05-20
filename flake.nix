@@ -19,10 +19,10 @@
       ];
 
       # Helper function to generate a NixOS system configuration
-      mkSystem = { hostname, system, modules, specialArgs ? {} }:
+      mkSystem = { hostname, system, extraModules, specialArgs ? {} }:
         nixpkgs.lib.nixosSystem {
-          inherit system modules specialArgs;
-          modules = modules ++ [
+          inherit system specialArgs;
+          modules = extraModules ++ [
             ./modules/common-base.nix
             sops-nix.nixosModules.sops # sops is needed for both stages (host key management for bootstrap)
             {
@@ -55,7 +55,7 @@
                 value = mkSystem {
                   hostname = node.name;
                   system = "x86_64-linux";
-                  modules = [
+                  extraModules = [
                     disko.nixosModules.disko
                     (./modules + "/${node.name}/disko.nix")
                     # Minimal modules for bootstrap
@@ -68,7 +68,7 @@
                 value = mkSystem {
                   hostname = node.name;
                   system = "x86_64-linux";
-                  modules = [
+                  extraModules = [
                     disko.nixosModules.disko
                     (./modules + "/${node.name}/disko.nix")
                     ./modules/k3s-node.nix
