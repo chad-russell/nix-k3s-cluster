@@ -87,16 +87,21 @@
           };
         } // builtins.listToAttrs (map (node: {
           name = node.name;
-          value = { pkgs, ... }: {
+          value = {
             imports = [
               ./modules/common-base.nix
               sops-nix.nixosModules.sops
               ./modules/k3s-node.nix
+              ({
+                networking.hostName = node.name;
+                sops.age.keyFile = "/etc/sops/age/key.txt";
+                sops.age.generateKey = false;
+              })
             ];
-            networking.hostName = node.name;
-            sops.age.keyFile = "/etc/sops/age/key.txt";
-            sops.age.generateKey = false;
-            specialArgs = { inherit (node) role; flakeRoot = ./.; };
+            specialArgs = {
+              role = node.role;
+              flakeRoot = ./.;
+            };
             deployment.targetHost = node.name;
             deployment.targetUser = "root";
           };
