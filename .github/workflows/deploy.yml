@@ -1,0 +1,89 @@
+name: Deploy NixOS Configuration with Colmena
+
+on:
+  push:
+    branches:
+      - main # Or your default branch
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # packages: write # Only if you plan to use GitHub Packages as a Nix cache
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v26
+        with:
+          nix_path: nixpkgs=channel:nixos-24.11 # Or your desired Nixpkgs channel
+          # extra_nix_config: | # Optional: if you use a binary cache
+          #   substituters = https://cache.nixos.org/ https://your-cachix-name.cachix.org
+          #   trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= your-cachix-name.cachix.org-1:your-key
+
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          # version: 1.32.0 # Optional: pin Tailscale version
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_FOR_COLMENA }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_colmena
+          chmod 600 ~/.ssh/id_colmena
+          ssh-keyscan -H core1 core2 core3 core4 >> ~/.ssh/known_hosts # Replace with your actual node hostnames if different
+          # If your hostnames are not immediately resolvable or change IPs,
+          # you might need a more robust way to add them to known_hosts,
+          # or consider using `StrictHostKeyChecking=no` (less secure).
+          # For Tailscale, hostnames should be stable.
+
+          cat <<EOF > ~/.ssh/config
+          Host core1 core2 core3 core4
+            HostName %h
+            User root # Or your deployment user
+            IdentityFile ~/.ssh/id_colmena
+            StrictHostKeyChecking accept-new # Or use known_hosts populated above
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Import SOPS Age Key
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          mkdir -p ~/.config/sops/age
+          echo "${SOPS_AGE_KEY}" > ~/.config/sops/age/keys.txt
+          chmod 600 ~/.config/sops/age/keys.txt
+          # sops --decrypt secrets/k3s-agent-node-token # Test decryption (optional)
+
+      - name: Run Colmena Apply
+        run: |
+          echo "Attempting to connect to Tailscale nodes..."
+          for i in {1..10}; do
+            if tailscale status | grep -q "core1"; then # Check one of your nodes
+              echo "Tailscale connection established."
+              break
+            fi
+            echo "Waiting for Tailscale to connect... attempt $i"
+            sleep 5
+          done
+          tailscale status # Display Tailscale status for debugging
+
+          # Ensure the flake is available and up-to-date
+          nix flake lock --update-input nixpkgs --update-input colmena
+          # Consider adding other inputs if you want them updated automatically: --update-input disko --update-input sops-nix 
+
+          # Apply the configuration
+          colmena apply --show-trace
+          # If you want to build on a specific host, e.g. a more powerful one,
+          # or use a remote builder, configure that in your Colmena/Nix settings.
+
+      # Optional: Add a step to clean up Tailscale if needed, though the ephemeral runner handles it.
+      # - name: Logout of Tailscale
+      #   if: always() # Ensure this runs even if previous steps fail
+      #   run: tailscale logout
