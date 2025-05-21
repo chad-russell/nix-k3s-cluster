@@ -80,15 +80,14 @@
         )
       );
       # Colmena Hive Configuration
-      colmenaHive = colmena.lib.makeHive {
-        meta = {
-          # Passing nixpkgs to Colmena
-          nixpkgs = import nixpkgs { system = "x86_64-linux"; };
-          # You can also pass overlays or other nixpkgs options here if needed
-        };
-        nodes = builtins.listToAttrs (map (node: {
-          name = node.name; # Use the node name as the attribute name for Colmena
-          value = { pkgs, ... }: { # pkgs is passed by Colmena
+      colmenaHive = colmena.lib.makeHive (
+        {
+          meta = {
+            nixpkgs = import nixpkgs { system = "x86_64-linux"; };
+          };
+        } // builtins.listToAttrs (map (node: {
+          name = node.name;
+          value = { pkgs, ... }: {
             imports = [
               ./modules/common-base.nix
               sops-nix.nixosModules.sops
@@ -96,27 +95,13 @@
               ./modules/k3s-node.nix
             ];
             networking.hostName = node.name;
-            sops.age.keyFile = "/etc/sops/age/key.txt"; # Ensure this path is correct and accessible
+            sops.age.keyFile = "/etc/sops/age/key.txt";
             sops.age.generateKey = false;
-
-            # Pass specialArgs to the modules, Colmena makes them available
-            # The actual NixOS configuration (services.k3s, etc.) will come from the imported modules
-            # using these specialArgs.
-            # Example: config.services.k3s.role will use `specialArgs.role`
             specialArgs = { inherit (node) role; flakeRoot = ./.; };
-
-            # Deployment target configuration (adjust as necessary)
-            deployment.targetHost = node.name; # Using node.name directly (tailscale Magic DNS will resolve it)
-            deployment.targetUser = "root"; # Assuming deployment as root
-            # deployment.targetPort = 22; # Default is 22
-
-            # If you have specific SSH keys for deployment, configure them here or use ssh-agent
-            # deployment.sshOpts = [ "-i" "/path/to/deployment_key" ];
-
-            # For sops-nix, ensure the age key is available on the target during activation
-            # This is handled by sops.age.keyFile above and your sops-nix setup.
+            deployment.targetHost = node.name;
+            deployment.targetUser = "root";
           };
-        }) nodes);
-      };
+        }) nodes)
+      );
     };
 }
