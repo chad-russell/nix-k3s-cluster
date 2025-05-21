@@ -70,7 +70,7 @@ Repeat these steps for each new agent node (`core3`, `core4`, etc.), replacing `
     *   Ensure the target machine is booted into the NixOS installer environment (e.g., from a NixOS ISO).
     *   From your flake repository directory on your management machine:
         ```bash
-        nixos-anywhere --flake github:chad-russell/nix-k3s-cluster/main github:chad-russell/nixx-k3s-cluster/main#core2-bootstrap nixos@<core2_ip_address>
+        nixos-anywhere --flake github:chad-russell/nix-k3s-cluster/main#core<n>-bootstrap nixos@<core2_ip_address>
         ```
     *   Wait for the installation to complete and the node to reboot.
 
