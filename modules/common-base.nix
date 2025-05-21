@@ -27,6 +27,14 @@
   # Root password for local console access
   users.users.root.hashedPassword = "$6$NrcWIXntX/mytgFj$9Sa/VuZGCapVG2mzoRv5lyGyVT3b49CkHFpU0iqa6LpcoR6Sj5SPAzd7TQO76N6wBhIjbf9LtTOWe.35SJayG/";
 
+  # Firewall configuration to allow Kubernetes NodePorts
+  networking.firewall = {
+    enable = true;
+    allowedTCPPortRanges = [
+      { from = 30000; to = 32767; } # Kubernetes NodePort range
+    ];
+  };
+
   # NixOS state version
   system.stateVersion = "24.11";
 
