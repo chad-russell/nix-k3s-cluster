@@ -8,12 +8,15 @@
   nixpkgs.config.allowUnfree = true;
 
   # K3s service configuration
-  services.k3s.enable = lib.mkIf (role == "server") true;
-
-  services.k3s.agent = let core1_ip = "100.103.44.81"; in lib.mkIf (role == "agent") {
+  services.k3s = {
     enable = true;
-    serverAddr = "https://${core1_ip}:6443"; # Static tailscale IP for core1 server
-    tokenFile = config.sops.secrets."k3s-agent-node-token".path;
+    extraFlags = lib.mkIf (role == "server") [
+      "--disable traefik"
+      "--disable servicelb"
+      "--disable local-storage"
+    ];
+    serverAddr = lib.mkIf (role == "agent") "https://100.103.44.81:6443"; # core1 Tailscale static IP
+    tokenFile = lib.mkIf (role == "agent") config.sops.secrets."k3s-agent-node-token".path;
   };
 
   sops.secrets."k3s-agent-node-token" = lib.mkIf (role == "agent") {
