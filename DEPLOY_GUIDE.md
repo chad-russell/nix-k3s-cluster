@@ -143,7 +143,7 @@ Repeat these steps for each new agent node (`core3`, `core4`, etc.), replacing `
 1.  Modify the plain-text secret file in your `secrets` directory.
 2.  Re-encrypt it using `sops --encrypt --in-place secrets/your-secret-file`.
 3.  Commit the encrypted file.
-4.  Run `sudo nixos-rebuild switch --flake github:chad-russell/nix-k3s-cluster/main .#<nodeName> --refresh` on each affected node.
+4.  Run `sudo nixos-rebuild switch --flake github:chad-russell/nix-k3s-cluster/main#<nodeName> --refresh` on each affected node.
 
 ## Updating Host Keys (e.g., if a host is re-provisioned)
 

@@ -10,6 +10,7 @@
   # K3s service configuration
   services.k3s = {
     enable = true;
+    inherit role;
     extraFlags = lib.mkIf (role == "server") [
       "--disable traefik"
       "--disable servicelb"
