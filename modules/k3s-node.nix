@@ -10,7 +10,7 @@
   # K3s service configuration
   services.k3s.enable = lib.mkIf (role == "server") true;
 
-  services.k3s.agent = lib.mkIf (role == "agent") let core1_ip = "100.103.44.81"; in {
+  services.k3s.agent = let core1_ip = "100.103.44.81"; in lib.mkIf (role == "agent") {
     enable = true;
     serverAddr = "https://${core1_ip}:6443"; # Static tailscale IP for core1 server
     tokenFile = config.sops.secrets."k3s-agent-node-token".path;
