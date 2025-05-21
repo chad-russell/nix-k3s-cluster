@@ -84,24 +84,30 @@
         {
           meta = {
             nixpkgs = import nixpkgs { system = "x86_64-linux"; };
+            # Define nodeSpecialArgs here for Colmena to pass to each node's modules
+            nodeSpecialArgs = builtins.listToAttrs (map (node: {
+              name = node.name;
+              value = { # These are the special arguments for this specific node
+                role = node.role;
+                flakeRoot = ./.;
+              };
+            }) nodes);
           };
         } // builtins.listToAttrs (map (node: {
           name = node.name;
+          # Node definition is now simpler. SpecialArgs are handled by meta.nodeSpecialArgs.
           value = {
             imports = [
               ./modules/common-base.nix
               sops-nix.nixosModules.sops
-              ./modules/k3s-node.nix
+              ./modules/k3s-node.nix # This module expects 'role' and 'flakeRoot'
               ({
                 networking.hostName = node.name;
                 sops.age.keyFile = "/etc/sops/age/key.txt";
                 sops.age.generateKey = false;
               })
             ];
-            specialArgs = {
-              role = node.role;
-              flakeRoot = ./.;
-            };
+            # Colmena-specific deployment options for this node.
             deployment.targetHost = node.name;
             deployment.targetUser = "root";
           };
