@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-app
+  labels:
+    app: hello-app
+spec:
+  replicas: 2 # Start with 2 replicas
+  selector:
+    matchLabels:
+      app: hello-app
+  template:
+    metadata:
+      labels:
+        app: hello-app
+    spec:
+      containers:
+        - name: hello-app
+          image: YOUR_DOCKER_USERNAME/hello-app:latest # Replace with your Docker Hub username and image name
+          ports:
+            - containerPort: 8080

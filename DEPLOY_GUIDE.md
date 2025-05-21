@@ -140,6 +140,7 @@ Repeat these steps for each new agent node (`core3`, `core4`, etc.), replacing `
         ```
         (Replace `/path/to/your/flake/checkout` with the actual path to your flake on the node, e.g., `./` if you are in the flake root).
     *   The k3s agent service should now start and register with the server using the decrypted token.
+    * From the `core1` node, run `kubectl get nodes -o wide` and you should see the new node.
 
 ## Updating Secrets or Adding New Secrets
 

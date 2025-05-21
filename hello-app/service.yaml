@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-app-service
+spec:
+  selector:
+    app: hello-app
+  ports:
+    - protocol: TCP
+      port: 80 # Port on the LoadBalancer/NodePort
+      targetPort: 8080 # Port on the Pod
+  type: NodePort # Or LoadBalancer if your k3s setup supports it and you have one configured
