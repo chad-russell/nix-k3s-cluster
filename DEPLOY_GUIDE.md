@@ -152,4 +152,59 @@ Repeat these steps for each new agent node (`core3`, `core4`, etc.), replacing `
 3.  Run `sops updatekeys -y <path-to-secret>` for all secrets that were encrypted with the old key.
 4.  Commit changes and redeploy.
 
+## Troubleshooting & Best Practices
+
+### 1. **sops-nix: Secret Format**
+- For simple secrets (like tokens), the secret file should be **plain text** (not YAML/JSON) before encryption.
+- In your Nix config, set:
+  ```nix
+  sops.secrets."your-secret" = {
+    sopsFile = "${flakeRoot}/secrets/your-secret";
+    format = "binary";
+  };
+  ```
+- If you want to use YAML/JSON, specify `format` and `key` accordingly.
+- If you see errors about missing keys, double-check the file format and the `format` option.
+
+### 2. **Disko: Partitioning and Mounting**
+- `nixos-rebuild switch` **does not** partition or format disks. You must run disko manually:
+  ```sh
+  nix run github:nix-community/disko -- --mode disko --flake .#<hostname>
+  ```
+- Always run this from your local flake checkout, not a remote flake reference.
+- **WARNING:** This will destroy all data on the target disks as defined in your disko config.
+- After running disko, reboot or manually mount all partitions as defined in your config.
+
+### 3. **Mounting /boot**
+- If you see errors about `/boot` not being mounted, manually mount it:
+  ```sh
+  mount /dev/<boot-partition> /boot
+  ```
+- Use `lsblk` to find the correct partition (usually something like `/dev/nvme0n1p1`).
+- If `/boot` does not exist, create it: `mkdir -p /boot`
+
+### 4. **Bootloader Installation**
+- After repartitioning, the EFI System Partition (ESP) may be empty.
+- If you see errors about systemd-boot not being installed, run:
+  ```sh
+  bootctl install
+  ```
+- Then re-run `nixos-rebuild switch`.
+
+### 5. **General Recovery Steps**
+- If you end up in an emergency shell:
+  1. Use `journalctl -xb` and `systemctl --failed` to find the real cause (often a mount or secret issue).
+  2. Use `lsblk` and `mount` to check partition status.
+  3. Mount missing partitions as needed.
+  4. Fix the root cause (partition, secret, config), then re-run `nixos-rebuild switch`.
+
+### 6. **Best Practices**
+- Always keep a local flake checkout on each node for recovery.
+- After running disko, reboot or manually mount all new partitions before rebuilding.
+- For sops-nix, always specify `format = "binary"` for plaintext secrets.
+- Document device names and partitioning schemes for each node.
+- If you change disk layout, always re-run disko and reinstall the bootloader.
+
+_This section is based on real-world troubleshooting and will help you avoid and recover from common pitfalls in future deployments._
+
 This guide should help you manage your cluster deployments consistently! 
