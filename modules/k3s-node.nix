@@ -8,19 +8,15 @@
   nixpkgs.config.allowUnfree = true;
 
   # K3s service configuration
-  services.k3s = {
+  services.k3s.enable = lib.mkIf (role == "server") true;
+
+  services.k3s.agent = lib.mkIf (role == "agent") let core1_ip = "100.103.44.81"; in {
     enable = true;
-    inherit role; # "server" or "agent"
-    extraFlags = lib.mkIf (role == "server") [
-      "--disable traefik"
-      "--disable servicelb"
-      "--disable local-storage"
-    ];
-    serverAddr = lib.mkIf (role == "agent") "https://100.104.34.1:6443"; # Static tailscale IP for server
-    tokenFile = lib.mkIf (role == "agent") config.sops.secrets."k3s-agent-node-token".path; # Use sops-nix path
+    serverAddr = "https://${core1_ip}:6443"; # Static tailscale IP for core1 server
+    tokenFile = config.sops.secrets."k3s-agent-node-token".path;
   };
 
-  sops.secrets."k3s-agent-node-token" = lib.mkIf (config.services.k3s.role == "agent") {
+  sops.secrets."k3s-agent-node-token" = lib.mkIf (role == "agent") {
     sopsFile = "${flakeRoot}/secrets/k3s-agent-node-token";
     format = "binary";
     # This will expect an encrypted file at ./secrets/k3s-agent-node-token
