@@ -78,10 +78,11 @@ Repeat these steps for each new agent node (`core3`, `core4`, etc.), replacing `
     *   SSH into the newly provisioned node (e.g., `ssh root@<core2_ip_address>`):
     *   Create the SOPS age key directory and generate the host's unique key:
         ```bash
-        sudo mkdir -p /etc/sops/age
-        sudo age-keygen -o /etc/sops/age/key.txt
-        sudo chmod 0600 /etc/sops/age/key.txt
-        sudo chown root:root /etc/sops/age/key.txt
+        mkdir -p /etc/sops/age
+        nix-shell -p age --extra-experimental-features flakes --extra-experimental-features nix-command
+        age-keygen -o /etc/sops/age/key.txt
+        chmod 0600 /etc/sops/age/key.txt
+        chown root:root /etc/sops/age/key.txt
         ```
     *   Get the **public key** for this host:
         ```bash
@@ -126,14 +127,16 @@ Repeat these steps for each new agent node (`core3`, `core4`, etc.), replacing `
         ```bash
         sops updatekeys -y secrets/k3s-agent-node-token
         ```
+        > See below about troubleshooting for the right keyfile if you get stuck here
     *   Commit the changes to `.sops.yaml` and the (re-)encrypted `secrets/k3s-agent-node-token` to your repository.
 
 3.  **Deploy the Full Configuration to the Node**:
     *   SSH into the target node (`core2`).
     *   Navigate to your flake checkout (or `scp` it over if not already there).
+    *   Connect to tailscale (`tailscale up --ssh`), so the k3s node can find it's control plane
     *   Run `nixos-rebuild switch` using the node's full configuration (not the bootstrap one):
         ```bash
-        sudo nixos-rebuild switch --flake /path/to/your/flake/checkout#core2
+        nixos-rebuild switch --flake /path/to/your/flake/checkout#core2
         ```
         (Replace `/path/to/your/flake/checkout` with the actual path to your flake on the node, e.g., `./` if you are in the flake root).
     *   The k3s agent service should now start and register with the server using the decrypted token.
