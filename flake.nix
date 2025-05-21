@@ -91,7 +91,6 @@
             imports = [
               ./modules/common-base.nix
               sops-nix.nixosModules.sops
-              (./modules + "/${node.name}/disko.nix")
               ./modules/k3s-node.nix
             ];
             networking.hostName = node.name;
