@@ -70,12 +70,12 @@ Repeat these steps for each new agent node (`core3`, `core4`, etc.), replacing `
     *   Ensure the target machine is booted into the NixOS installer environment (e.g., from a NixOS ISO).
     *   From your flake repository directory on your management machine:
         ```bash
-        nixos-anywhere --flake .#core2-bootstrap nixos@<core2_ip_address>
+        nixos-anywhere --flake github:chad-russell/nix-k3s-cluster/main github:chad-russell/nixx-k3s-cluster/main#core2-bootstrap nixos@<core2_ip_address>
         ```
     *   Wait for the installation to complete and the node to reboot.
 
 2.  **Generate and Configure Host SOPS Key on the New Node**:
-    *   SSH into the newly provisioned node (e.g., `ssh root@<core2_ip_address>` or `ssh root@core2.your-tailscale-domain`):
+    *   SSH into the newly provisioned node (e.g., `ssh root@<core2_ip_address>`):
     *   Create the SOPS age key directory and generate the host's unique key:
         ```bash
         sudo mkdir -p /etc/sops/age
@@ -143,7 +143,7 @@ Repeat these steps for each new agent node (`core3`, `core4`, etc.), replacing `
 1.  Modify the plain-text secret file in your `secrets` directory.
 2.  Re-encrypt it using `sops --encrypt --in-place secrets/your-secret-file`.
 3.  Commit the encrypted file.
-4.  Run `sudo nixos-rebuild switch --flake .#<nodeName>` on each affected node.
+4.  Run `sudo nixos-rebuild switch --flake github:chad-russell/nix-k3s-cluster/main .#<nodeName> --refresh` on each affected node.
 
 ## Updating Host Keys (e.g., if a host is re-provisioned)
 
@@ -165,11 +165,14 @@ Repeat these steps for each new agent node (`core3`, `core4`, etc.), replacing `
   ```
 - If you want to use YAML/JSON, specify `format` and `key` accordingly.
 - If you see errors about missing keys, double-check the file format and the `format` option.
+- If you get an error about the key not being correct, make sure you are using the correct master key for nix-k3s-cluster
+  - This is different than the key for desktop/home-manager flake. Find it in bitwarden
+  - Save it and do something like the following: `export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys-core.txt"`
 
 ### 2. **Disko: Partitioning and Mounting**
 - `nixos-rebuild switch` **does not** partition or format disks. You must run disko manually:
   ```sh
-  nix run github:nix-community/disko -- --mode disko --flake .#<hostname>
+  nix run github:nix-community/disko -- --mode disko --flake github:chad-russell/nix-k3s-cluster/main .#<hostname> --refresh
   ```
 - Always run this from your local flake checkout, not a remote flake reference.
 - **WARNING:** This will destroy all data on the target disks as defined in your disko config.
