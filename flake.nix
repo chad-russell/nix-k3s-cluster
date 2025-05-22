@@ -67,6 +67,10 @@
                   hostname = node.name;
                   system = "x86_64-linux";
                   extraModules = [
+                    disko.nixosModules.disko
+                    (./modules + "/${node.name}/disko.nix")
+                    ./modules/common-base.nix
+                    sops-nix.nixosModules.sops
                     ./modules/k3s-node.nix
                   ];
                   specialArgs = { role = node.role; flakeRoot = ./.; };
