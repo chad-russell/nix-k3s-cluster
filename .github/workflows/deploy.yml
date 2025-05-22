@@ -1,4 +1,4 @@
-name: Deploy NixOS Configuration with Colmena
+name: Deploy NixOS Configuration
 
 on:
   push:
@@ -61,7 +61,7 @@ jobs:
           chmod 600 ~/.config/sops/age/keys.txt
           # sops --decrypt secrets/k3s-agent-node-token # Test decryption (optional)
 
-      - name: Run Colmena Apply
+      - name: Deploy NixOS Configuration to Nodes
         run: |
           echo "Attempting to connect to Tailscale nodes..."
           for i in {1..10}; do
@@ -74,16 +74,18 @@ jobs:
           done
           tailscale status # Display Tailscale status for debugging
 
-          # Ensure the flake is available and up-to-date
-          nix flake lock --update-input nixpkgs --update-input colmena
+          # Ensure the flake inputs are up-to-date
+          nix flake lock --update-input nixpkgs
           # Consider adding other inputs if you want them updated automatically: --update-input disko --update-input sops-nix 
 
-          # Apply the configuration
-          colmena apply --show-trace
-          # If you want to build on a specific host, e.g. a more powerful one,
-          # or use a remote builder, configure that in your Colmena/Nix settings.
-
-      # Optional: Add a step to clean up Tailscale if needed, though the ephemeral runner handles it.
-      # - name: Logout of Tailscale
-      #   if: always() # Ensure this runs even if previous steps fail
-      #   run: tailscale logout
+          # Deploy to each node
+          NODES="core1 core2 core3 core4"
+          for node in $NODES; do
+            echo "Deploying to $node..."
+            # Ensure your flake.nix has nixosConfigurations.$node defined for each node.
+            # The --target-host will use the SSH configuration defined above (User root, IdentityFile).
+            # --use-remote-sudo is used as we are connecting as root but nixos-rebuild often needs sudo for the final switch.
+            nixos-rebuild switch --flake .#$node --target-host $node --use-remote-sudo --show-trace
+            echo "Successfully deployed to $node."
+          done
+          echo "All nodes deployed."

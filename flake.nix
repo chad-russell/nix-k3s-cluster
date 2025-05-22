@@ -7,10 +7,9 @@
     disko.url = "github:nix-community/disko";
     sops-nix.url = "github:Mic92/sops-nix";
     sops-nix.inputs.nixpkgs.follows = "nixpkgs";
-    colmena.url = "github:zhaofengli/colmena";
   };
 
-  outputs = { self, nixpkgs, flake-utils, disko, sops-nix, colmena, ... }:
+  outputs = { self, nixpkgs, flake-utils, disko, sops-nix, ... }:
     let
       nodes = [
         { name = "core1"; role = "server"; }
@@ -40,7 +39,7 @@
         pkgs = import nixpkgs { inherit system; };
       in {
         devShell = pkgs.mkShell {
-          buildInputs = [ pkgs.k3s pkgs.kubectl pkgs.sops pkgs.age pkgs.colmena ];
+          buildInputs = [ pkgs.k3s pkgs.kubectl pkgs.sops pkgs.age ];
         };
       }
     ) // {
@@ -79,37 +78,6 @@
             ]
           ) nodes
         )
-      );
-      # Colmena Hive Configuration
-      colmenaHive = colmena.lib.makeHive (
-        {
-          meta = {
-            nixpkgs = import nixpkgs { system = "x86_64-linux"; };
-            # Define nodeSpecialArgs here for Colmena to pass to each node's modules
-            nodeSpecialArgs = builtins.listToAttrs (map (node: {
-              name = node.name;
-              value = { # These are the special arguments for this specific node
-                role = node.role;
-                flakeRoot = ./.;
-              };
-            }) nodes);
-          };
-        } // builtins.listToAttrs (map (node: {
-          name = node.name;
-          # Node definition is now simpler. SpecialArgs are handled by meta.nodeSpecialArgs.
-          value = {
-            imports = [
-              disko.nixosModules.disko
-              (./modules + "/${node.name}/disko.nix")
-              ./modules/common-base.nix
-              sops-nix.nixosModules.sops
-              ./modules/k3s-node.nix
-            ];
-            # Colmena-specific deployment options for this node.
-            deployment.targetHost = node.name;
-            deployment.targetUser = "root";
-          };
-        }) nodes)
       );
     };
 }
