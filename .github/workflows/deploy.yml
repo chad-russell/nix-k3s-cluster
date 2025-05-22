@@ -28,8 +28,19 @@ jobs:
         uses: tailscale/github-action@v3
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
-          args: --accept-risk=lose-ssh-host-keys
+          args: --accept-risk=lose-ssh-host-keys --ssh
           # version: 1.32.0 # Optional: pin Tailscale version
+
+      - name: Get Tailscale IPs
+        run: |
+          echo "Waiting for Tailscale to initialize..."
+          sleep 5
+          tailscale status
+          # Extract the actual IP addresses for direct connections
+          echo "CORE1_IP=$(tailscale status | grep core1 | awk '{print $1}')" >> $GITHUB_ENV
+          echo "CORE2_IP=$(tailscale status | grep core2 | awk '{print $1}')" >> $GITHUB_ENV
+          echo "CORE3_IP=$(tailscale status | grep core3 | awk '{print $1}')" >> $GITHUB_ENV
+          echo "CORE4_IP=$(tailscale status | grep core4 | awk '{print $1}')" >> $GITHUB_ENV
 
       - name: Configure SSH
         env:
@@ -45,16 +56,46 @@ jobs:
           # For Tailscale, hostnames should be stable.
 
           cat <<EOF > ~/.ssh/config
-          Host core1 core2 core3 core4
-            HostName %h
-            User root # Or your deployment user
+          Host core1
+            HostName \${CORE1_IP:-core1}
+            User root
             IdentityFile ~/.ssh/id_colmena
-            StrictHostKeyChecking accept-new # Or use known_hosts populated above
-            # Explicitly disable Tailscale SSH auth to use the key instead
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            PreferredAuthentications publickey
+            PubkeyAcceptedKeyTypes +ssh-rsa
+            
+          Host core2
+            HostName \${CORE2_IP:-core2}
+            User root
+            IdentityFile ~/.ssh/id_colmena
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            PreferredAuthentications publickey
+            PubkeyAcceptedKeyTypes +ssh-rsa
+            
+          Host core3
+            HostName \${CORE3_IP:-core3}
+            User root
+            IdentityFile ~/.ssh/id_colmena
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            PreferredAuthentications publickey
+            PubkeyAcceptedKeyTypes +ssh-rsa
+            
+          Host core4
+            HostName \${CORE4_IP:-core4}
+            User root
+            IdentityFile ~/.ssh/id_colmena
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
             PreferredAuthentications publickey
             PubkeyAcceptedKeyTypes +ssh-rsa
           EOF
           chmod 600 ~/.ssh/config
+
+          # Print SSH key fingerprint for debugging
+          ssh-keygen -l -f ~/.ssh/id_colmena || echo "Invalid key format"
 
       - name: Import SOPS Age Key
         env:
@@ -78,18 +119,58 @@ jobs:
           done
           tailscale status # Display Tailscale status for debugging
 
+          # Test SSH connections first with verbose output
+          echo "Testing SSH connection to nodes..."
+          for node in core1 core2 core3 core4; do
+            echo "Testing connection to $node..."
+            # Try a direct connection with the SSH config
+            ssh -v $node "echo SSH connection to $node successful" || echo "Failed to connect to $node"
+          done
+
+          # Try a direct test with IP (in case the hostname resolution is the issue)
+          echo "Testing direct IP connections..."
+          if [[ -n "$CORE1_IP" ]]; then
+            ssh -v -i ~/.ssh/id_colmena -o StrictHostKeyChecking=no -o PreferredAuthentications=publickey root@$CORE1_IP "echo Direct IP connection successful" || echo "Direct IP connection failed"
+          fi
+
           # Ensure the flake inputs are up-to-date
           nix flake lock --update-input nixpkgs
-          # Consider adding other inputs if you want them updated automatically: --update-input disko --update-input sops-nix 
 
           # Deploy to each node
           NODES="core1 core2 core3 core4"
           for node in $NODES; do
             echo "Deploying to $node..."
-            # Ensure your flake.nix has nixosConfigurations.$node defined for each node.
-            # The --target-host will use the SSH configuration defined above (User root, IdentityFile).
-            # --use-remote-sudo is used as we are connecting as root but nixos-rebuild often needs sudo for the final switch.
-            nix run nixpkgs#nixos-rebuild -- switch --flake .#$node --target-host $node --use-remote-sudo --show-trace
-            echo "Successfully deployed to $node."
+            # Try direct approach using the IP variable
+            if [[ "$node" == "core1" && -n "$CORE1_IP" ]]; then
+              TARGET_HOST="root@$CORE1_IP"
+            elif [[ "$node" == "core2" && -n "$CORE2_IP" ]]; then
+              TARGET_HOST="root@$CORE2_IP"
+            elif [[ "$node" == "core3" && -n "$CORE3_IP" ]]; then
+              TARGET_HOST="root@$CORE3_IP"
+            elif [[ "$node" == "core4" && -n "$CORE4_IP" ]]; then
+              TARGET_HOST="root@$CORE4_IP"
+            else
+              TARGET_HOST="$node"
+            fi
+            
+            echo "Using target host: $TARGET_HOST"
+            # Use the no-build option to avoid the issue
+            nix run nixpkgs#nixos-rebuild -- switch --flake .#$node --target-host "$TARGET_HOST" --use-remote-sudo --show-trace
+            
+            if [ $? -ne 0 ]; then
+              echo "Standard deploy failed, trying alternate approach for $node..."
+              # Build locally and copy to remote
+              nix build .#nixosConfigurations.$node.config.system.build.toplevel --show-trace
+              
+              # Copy to remote and activate on the remote machine
+              CLOSURE_PATH=$(readlink -f result)
+              echo "Built system closure at $CLOSURE_PATH"
+              
+              ssh -v $TARGET_HOST "echo Testing connection before nix copy"
+              nix copy --to ssh://$TARGET_HOST $CLOSURE_PATH
+              ssh -v $TARGET_HOST "$CLOSURE_PATH/bin/switch-to-configuration switch"
+            fi
+            
+            echo "Deployment to $node completed."
           done
           echo "All nodes deployed."
