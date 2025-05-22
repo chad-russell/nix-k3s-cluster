@@ -28,6 +28,7 @@ jobs:
         uses: tailscale/github-action@v3
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
+          args: --accept-risk=lose-ssh-host-keys
           # version: 1.32.0 # Optional: pin Tailscale version
 
       - name: Configure SSH
@@ -49,6 +50,9 @@ jobs:
             User root # Or your deployment user
             IdentityFile ~/.ssh/id_colmena
             StrictHostKeyChecking accept-new # Or use known_hosts populated above
+            # Explicitly disable Tailscale SSH auth to use the key instead
+            PreferredAuthentications publickey
+            PubkeyAcceptedKeyTypes +ssh-rsa
           EOF
           chmod 600 ~/.ssh/config
 
