@@ -100,9 +100,6 @@
               ./modules/common-base.nix
               sops-nix.nixosModules.sops
               ./modules/k3s-node.nix
-              ({ lib, ... }: {
-                disko.dryRun = true;
-              })
             ];
             # Colmena-specific deployment options for this node.
             deployment.targetHost = node.name;
