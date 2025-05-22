@@ -28,6 +28,11 @@
   # Root password for local console access
   users.users.root.hashedPassword = "$6$NrcWIXntX/mytgFj$9Sa/VuZGCapVG2mzoRv5lyGyVT3b49CkHFpU0iqa6LpcoR6Sj5SPAzd7TQO76N6wBhIjbf9LtTOWe.35SJayG/";
 
+  # Common system packages
+  environment.systemPackages = with pkgs; [
+    git
+  ];
+
   # Firewall configuration to allow Kubernetes NodePorts
   networking.firewall = {
     enable = true;
@@ -56,7 +61,7 @@
       # ...add more keys if needed
     ];
     # Optionally set a password (hashed) or leave passwordless for SSH-only
-    # hashedPassword = "...";
+    hashedPassword = "$6$NrcWIXntX/mytgFj$9Sa/VuZGCapVG2mzoRv5lyGyVT3b49CkHFpU0iqa6LpcoR6Sj5SPAzd7TQO76N6wBhIjbf9LtTOWe.35SJayG/";
   };
 
   security.sudo.extraRules = [
