@@ -57,7 +57,6 @@
                   extraModules = [
                     disko.nixosModules.disko
                     (./modules + "/${node.name}/disko.nix")
-                    # Minimal modules for bootstrap
                   ];
                   specialArgs = { role = node.role; flakeRoot = ./.; };
                 };
@@ -96,13 +95,13 @@
           # Node definition is now simpler. SpecialArgs are handled by meta.nodeSpecialArgs.
           value = {
             imports = [
+              disko.nixosModules.disko
+              (./modules + "/${node.name}/disko.nix")
               ./modules/common-base.nix
               sops-nix.nixosModules.sops
-              ./modules/k3s-node.nix # This module expects 'role' and 'flakeRoot'
-              ({
-                networking.hostName = node.name;
-                sops.age.keyFile = "/etc/sops/age/key.txt";
-                sops.age.generateKey = false;
+              ./modules/k3s-node.nix
+              ({ lib, ... }: {
+                disko.dryRun = true;
               })
             ];
             # Colmena-specific deployment options for this node.
