@@ -28,7 +28,7 @@ jobs:
         uses: tailscale/github-action@v3
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
-          args: --ssh --accept-risk=lose-ssh-host-keys --authkey-is-ssh-cert
+          args: --ssh --accept-risk=lose-ssh-host-keys --advertise-tags=tag:github-actions
           # version: 1.32.0 # Optional: pin Tailscale version
 
         # NOTE: For this approach to work, you need to set up Tailscale ACLs with:
