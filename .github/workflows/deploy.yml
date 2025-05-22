@@ -28,7 +28,7 @@ jobs:
         uses: tailscale/github-action@v3
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
-          args: --accept-risk=lose-ssh-host-keys --ssh
+          args: --accept-risk=lose-ssh-host-keys
           # version: 1.32.0 # Optional: pin Tailscale version
 
       - name: Get Tailscale IPs
@@ -49,48 +49,49 @@ jobs:
           mkdir -p ~/.ssh
           echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_colmena
           chmod 600 ~/.ssh/id_colmena
-          # ssh-keyscan will be performed after Tailscale connection is verified.
-          # If your hostnames are not immediately resolvable or change IPs,
-          # you might need a more robust way to add them to known_hosts,
-          # or consider using `StrictHostKeyChecking=no` (less secure).
-          # For Tailscale, hostnames should be stable.
 
+          # Extract IPs from tailscale status directly
+          CORE1_IP=$(tailscale status | grep core1 | awk '{print $1}')
+          CORE2_IP=$(tailscale status | grep core2 | awk '{print $1}')
+          CORE3_IP=$(tailscale status | grep core3 | awk '{print $1}')
+          CORE4_IP=$(tailscale status | grep core4 | awk '{print $1}')
+
+          # Create a custom SSH wrapper script to use for Tailscale connections
+          # This bypasses the Tailscale SSH and directly uses TCP via tailscale netcat
+          cat <<EOF > ~/tailscale-ssh.sh
+          #!/bin/bash
+          HOST=\$1
+          shift
+
+          # Extract the IP from our mapping
+          if [[ "\$HOST" == "core1" ]]; then
+            IP=$CORE1_IP
+          elif [[ "\$HOST" == "core2" ]]; then
+            IP=$CORE2_IP
+          elif [[ "\$HOST" == "core3" ]]; then
+            IP=$CORE3_IP
+          elif [[ "\$HOST" == "core4" ]]; then
+            IP=$CORE4_IP
+          else
+            IP=\$HOST
+          fi
+
+          # Connect using regular SSH but with netcat for the connection
+          ssh -i ~/.ssh/id_colmena -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ProxyCommand="tailscale netcat \$IP 22" root@\$IP "\$@"
+          EOF
+
+          chmod +x ~/tailscale-ssh.sh
+
+          # Create SSH config with direct IP connections via netcat
           cat <<EOF > ~/.ssh/config
-          Host core1
-            HostName \${CORE1_IP:-core1}
+          Host core1 core2 core3 core4
             User root
             IdentityFile ~/.ssh/id_colmena
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
             PreferredAuthentications publickey
             PubkeyAcceptedKeyTypes +ssh-rsa
-            
-          Host core2
-            HostName \${CORE2_IP:-core2}
-            User root
-            IdentityFile ~/.ssh/id_colmena
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-            PreferredAuthentications publickey
-            PubkeyAcceptedKeyTypes +ssh-rsa
-            
-          Host core3
-            HostName \${CORE3_IP:-core3}
-            User root
-            IdentityFile ~/.ssh/id_colmena
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-            PreferredAuthentications publickey
-            PubkeyAcceptedKeyTypes +ssh-rsa
-            
-          Host core4
-            HostName \${CORE4_IP:-core4}
-            User root
-            IdentityFile ~/.ssh/id_colmena
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-            PreferredAuthentications publickey
-            PubkeyAcceptedKeyTypes +ssh-rsa
+            ProxyCommand tailscale netcat %h 22
           EOF
           chmod 600 ~/.ssh/config
 
@@ -119,19 +120,13 @@ jobs:
           done
           tailscale status # Display Tailscale status for debugging
 
-          # Test SSH connections first with verbose output
-          echo "Testing SSH connection to nodes..."
+          # Test connections with our custom wrapper script
+          echo "Testing SSH connections with custom wrapper..."
           for node in core1 core2 core3 core4; do
             echo "Testing connection to $node..."
-            # Try a direct connection with the SSH config
-            ssh -v $node "echo SSH connection to $node successful" || echo "Failed to connect to $node"
+            # Try our custom wrapper
+            ~/tailscale-ssh.sh $node "echo Custom SSH to $node successful" || echo "Custom connection failed"
           done
-
-          # Try a direct test with IP (in case the hostname resolution is the issue)
-          echo "Testing direct IP connections..."
-          if [[ -n "$CORE1_IP" ]]; then
-            ssh -v -i ~/.ssh/id_colmena -o StrictHostKeyChecking=no -o PreferredAuthentications=publickey root@$CORE1_IP "echo Direct IP connection successful" || echo "Direct IP connection failed"
-          fi
 
           # Ensure the flake inputs are up-to-date
           nix flake lock --update-input nixpkgs
@@ -140,36 +135,22 @@ jobs:
           NODES="core1 core2 core3 core4"
           for node in $NODES; do
             echo "Deploying to $node..."
-            # Try direct approach using the IP variable
-            if [[ "$node" == "core1" && -n "$CORE1_IP" ]]; then
-              TARGET_HOST="root@$CORE1_IP"
-            elif [[ "$node" == "core2" && -n "$CORE2_IP" ]]; then
-              TARGET_HOST="root@$CORE2_IP"
-            elif [[ "$node" == "core3" && -n "$CORE3_IP" ]]; then
-              TARGET_HOST="root@$CORE3_IP"
-            elif [[ "$node" == "core4" && -n "$CORE4_IP" ]]; then
-              TARGET_HOST="root@$CORE4_IP"
-            else
-              TARGET_HOST="$node"
-            fi
             
-            echo "Using target host: $TARGET_HOST"
-            # Use the no-build option to avoid the issue
-            nix run nixpkgs#nixos-rebuild -- switch --flake .#$node --target-host "$TARGET_HOST" --use-remote-sudo --show-trace
+            # Build locally first to avoid SSH issues during the build phase
+            echo "Building system for $node locally..."
+            nix build .#nixosConfigurations.$node.config.system.build.toplevel --show-trace
             
-            if [ $? -ne 0 ]; then
-              echo "Standard deploy failed, trying alternate approach for $node..."
-              # Build locally and copy to remote
-              nix build .#nixosConfigurations.$node.config.system.build.toplevel --show-trace
-              
-              # Copy to remote and activate on the remote machine
-              CLOSURE_PATH=$(readlink -f result)
-              echo "Built system closure at $CLOSURE_PATH"
-              
-              ssh -v $TARGET_HOST "echo Testing connection before nix copy"
-              nix copy --to ssh://$TARGET_HOST $CLOSURE_PATH
-              ssh -v $TARGET_HOST "$CLOSURE_PATH/bin/switch-to-configuration switch"
-            fi
+            # Get the closure path
+            CLOSURE_PATH=$(readlink -f result)
+            echo "Built system closure at $CLOSURE_PATH"
+            
+            # Copy to remote and activate using our custom script
+            echo "Copying to $node and activating..."
+            nix copy --to ssh://root@$node?remote-store=local?root=/nix/store $CLOSURE_PATH || \
+              nix copy --to "ssh-ng://root@$node" $CLOSURE_PATH
+            
+            # Activate the configuration
+            ~/tailscale-ssh.sh $node "$CLOSURE_PATH/bin/switch-to-configuration switch"
             
             echo "Deployment to $node completed."
           done
