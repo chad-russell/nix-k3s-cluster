@@ -85,7 +85,7 @@ jobs:
             # Ensure your flake.nix has nixosConfigurations.$node defined for each node.
             # The --target-host will use the SSH configuration defined above (User root, IdentityFile).
             # --use-remote-sudo is used as we are connecting as root but nixos-rebuild often needs sudo for the final switch.
-            nixos-rebuild switch --flake .#$node --target-host $node --use-remote-sudo --show-trace
+            nix run nixpkgs#nixos-rebuild -- switch --flake .#$node --target-host $node --use-remote-sudo --show-trace
             echo "Successfully deployed to $node."
           done
           echo "All nodes deployed."
