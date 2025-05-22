@@ -28,19 +28,31 @@ jobs:
         uses: tailscale/github-action@v3
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
-          args: --accept-risk=lose-ssh-host-keys
+          args: --ssh --accept-risk=lose-ssh-host-keys --authkey-is-ssh-cert
           # version: 1.32.0 # Optional: pin Tailscale version
 
-      - name: Get Tailscale IPs
-        run: |
-          echo "Waiting for Tailscale to initialize..."
-          sleep 5
-          tailscale status
-          # Extract the actual IP addresses for direct connections
-          echo "CORE1_IP=$(tailscale status | grep core1 | awk '{print $1}')" >> $GITHUB_ENV
-          echo "CORE2_IP=$(tailscale status | grep core2 | awk '{print $1}')" >> $GITHUB_ENV
-          echo "CORE3_IP=$(tailscale status | grep core3 | awk '{print $1}')" >> $GITHUB_ENV
-          echo "CORE4_IP=$(tailscale status | grep core4 | awk '{print $1}')" >> $GITHUB_ENV
+        # NOTE: For this approach to work, you need to set up Tailscale ACLs with:
+        # 1. An auth key with "ephemeral" set to true for GitHub Actions
+        # 2. SSH permissions for this ephemeral node to access core1-4 nodes
+        # Example ACL snippet:
+        # {
+        #   "acls": [
+        #     {
+        #       "action": "accept",
+        #       "src": ["github-actions"], // A tag applied to the ephemeral node
+        #       "dst": ["tag:server-nodes:22"],
+        #       "proto": "tcp"
+        #     }
+        #   ],
+        #   "ssh": [
+        #     {
+        #       "action": "accept",
+        #       "src": ["github-actions"],
+        #       "dst": ["tag:server-nodes"],
+        #       "users": ["root"]
+        #     }
+        #   ]
+        # }
 
       - name: Configure SSH
         env:
@@ -50,48 +62,13 @@ jobs:
           echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_colmena
           chmod 600 ~/.ssh/id_colmena
 
-          # Extract IPs from tailscale status directly
-          CORE1_IP=$(tailscale status | grep core1 | awk '{print $1}')
-          CORE2_IP=$(tailscale status | grep core2 | awk '{print $1}')
-          CORE3_IP=$(tailscale status | grep core3 | awk '{print $1}')
-          CORE4_IP=$(tailscale status | grep core4 | awk '{print $1}')
-
-          # Create a custom SSH wrapper script to use for Tailscale connections
-          # This bypasses the Tailscale SSH and directly uses TCP via tailscale netcat
-          cat <<EOF > ~/tailscale-ssh.sh
-          #!/bin/bash
-          HOST=\$1
-          shift
-
-          # Extract the IP from our mapping
-          if [[ "\$HOST" == "core1" ]]; then
-            IP=$CORE1_IP
-          elif [[ "\$HOST" == "core2" ]]; then
-            IP=$CORE2_IP
-          elif [[ "\$HOST" == "core3" ]]; then
-            IP=$CORE3_IP
-          elif [[ "\$HOST" == "core4" ]]; then
-            IP=$CORE4_IP
-          else
-            IP=\$HOST
-          fi
-
-          # Connect using regular SSH but with netcat for the connection
-          ssh -i ~/.ssh/id_colmena -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ProxyCommand="tailscale netcat \$IP 22" root@\$IP "\$@"
-          EOF
-
-          chmod +x ~/tailscale-ssh.sh
-
-          # Create SSH config with direct IP connections via netcat
+          # Simple SSH config for direct Tailscale SSH connections
           cat <<EOF > ~/.ssh/config
           Host core1 core2 core3 core4
             User root
             IdentityFile ~/.ssh/id_colmena
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
-            PreferredAuthentications publickey
-            PubkeyAcceptedKeyTypes +ssh-rsa
-            ProxyCommand tailscale netcat %h 22
           EOF
           chmod 600 ~/.ssh/config
 
@@ -120,12 +97,11 @@ jobs:
           done
           tailscale status # Display Tailscale status for debugging
 
-          # Test connections with our custom wrapper script
-          echo "Testing SSH connections with custom wrapper..."
+          # Test SSH connections with standard SSH
+          echo "Testing SSH connections..."
           for node in core1 core2 core3 core4; do
             echo "Testing connection to $node..."
-            # Try our custom wrapper
-            ~/tailscale-ssh.sh $node "echo Custom SSH to $node successful" || echo "Custom connection failed"
+            ssh -v $node "echo SSH connection to $node successful" || echo "Failed to connect to $node"
           done
 
           # Ensure the flake inputs are up-to-date
@@ -136,22 +112,26 @@ jobs:
           for node in $NODES; do
             echo "Deploying to $node..."
             
-            # Build locally first to avoid SSH issues during the build phase
-            echo "Building system for $node locally..."
-            nix build .#nixosConfigurations.$node.config.system.build.toplevel --show-trace
-            
-            # Get the closure path
-            CLOSURE_PATH=$(readlink -f result)
-            echo "Built system closure at $CLOSURE_PATH"
-            
-            # Copy to remote and activate using our custom script
-            echo "Copying to $node and activating..."
-            nix copy --to ssh://root@$node?remote-store=local?root=/nix/store $CLOSURE_PATH || \
-              nix copy --to "ssh-ng://root@$node" $CLOSURE_PATH
-            
-            # Activate the configuration
-            ~/tailscale-ssh.sh $node "$CLOSURE_PATH/bin/switch-to-configuration switch"
-            
-            echo "Deployment to $node completed."
+            # Try direct nixos-rebuild approach first
+            echo "Attempting direct deployment to $node..."
+            if nix run nixpkgs#nixos-rebuild -- switch --flake .#$node --target-host $node --use-remote-sudo --show-trace; then
+              echo "Successfully deployed to $node using nixos-rebuild."
+            else
+              echo "Direct deployment failed, trying two-phase approach for $node..."
+              
+              # Fall back to two-phase deployment if direct approach fails
+              echo "Building system for $node locally..."
+              nix build .#nixosConfigurations.$node.config.system.build.toplevel --show-trace
+              
+              # Get the closure path
+              CLOSURE_PATH=$(readlink -f result)
+              echo "Built system closure at $CLOSURE_PATH"
+              
+              # Copy and activate
+              echo "Copying to $node and activating..."
+              nix copy --to ssh://root@$node $CLOSURE_PATH
+              ssh $node "$CLOSURE_PATH/bin/switch-to-configuration switch"
+              echo "Deployment to $node completed via two-phase approach."
+            fi
           done
           echo "All nodes deployed."
