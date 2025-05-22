@@ -37,7 +37,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_colmena
           chmod 600 ~/.ssh/id_colmena
-          ssh-keyscan -H core1 core2 core3 core4 >> ~/.ssh/known_hosts # Replace with your actual node hostnames if different
+          # ssh-keyscan will be performed after Tailscale connection is verified.
           # If your hostnames are not immediately resolvable or change IPs,
           # you might need a more robust way to add them to known_hosts,
           # or consider using `StrictHostKeyChecking=no` (less secure).
@@ -73,6 +73,12 @@ jobs:
             sleep 5
           done
           tailscale status # Display Tailscale status for debugging
+
+          echo "Adding Tailscale node SSH keys to known_hosts..."
+          # Attempt to scan all nodes. If a node is temporarily down but others are up,
+          # this might still allow deployments to the available nodes.
+          # Consider adding set -e if any failure here should stop the entire job.
+          ssh-keyscan -H core1 core2 core3 core4 >> ~/.ssh/known_hosts || echo "ssh-keyscan failed for one or more hosts, continuing..."
 
           # Ensure the flake inputs are up-to-date
           nix flake lock --update-input nixpkgs
