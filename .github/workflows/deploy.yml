@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v26
+        uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-24.11 # Or your desired Nixpkgs channel
           # extra_nix_config: | # Optional: if you use a binary cache
@@ -25,7 +25,7 @@ jobs:
           #   trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= your-cachix-name.cachix.org-1:your-key
 
       - name: Setup Tailscale
-        uses: tailscale/github-action@v2
+        uses: tailscale/github-action@v3
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
           # version: 1.32.0 # Optional: pin Tailscale version
@@ -73,12 +73,6 @@ jobs:
             sleep 5
           done
           tailscale status # Display Tailscale status for debugging
-
-          echo "Adding Tailscale node SSH keys to known_hosts..."
-          # Attempt to scan all nodes. If a node is temporarily down but others are up,
-          # this might still allow deployments to the available nodes.
-          # Consider adding set -e if any failure here should stop the entire job.
-          ssh-keyscan -H core1 core2 core3 core4 >> ~/.ssh/known_hosts || echo "ssh-keyscan failed for one or more hosts, continuing..."
 
           # Ensure the flake inputs are up-to-date
           nix flake lock --update-input nixpkgs
