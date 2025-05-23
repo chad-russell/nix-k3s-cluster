@@ -29,7 +29,7 @@
               ];
             };
           };
-        },
+        }
         # Document 2: Service
         {
           apiVersion = "v1";
@@ -46,7 +46,7 @@
             ];
             type = "ClusterIP";
           };
-        },
+        }
         # Document 3: IngressRoute
         {
           apiVersion = "traefik.containo.us/v1alpha1";
