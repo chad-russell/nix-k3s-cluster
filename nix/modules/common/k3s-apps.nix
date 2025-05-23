@@ -14,10 +14,7 @@ let
       replicas = 2;
       containerPort = 8080;
       servicePort = 80;
-      tailscale = {
-        hostname = "hello-app-k3s";
-        loadBalancerClass = "tailscale";
-      };
+      nodePort = 30080;  # Expose on this port via host's Tailscale IP
     };
   };
 
@@ -60,8 +57,6 @@ let
     metadata:
       name: ${apps.hello-app.name}-service
       namespace: ${apps.hello-app.namespace}
-      annotations:
-        tailscale.com/hostname: ${apps.hello-app.tailscale.hostname}
     spec:
       selector:
         app: ${apps.hello-app.name}
@@ -69,8 +64,8 @@ let
       - protocol: TCP
         port: ${toString apps.hello-app.servicePort}
         targetPort: ${toString apps.hello-app.containerPort}
-      type: LoadBalancer
-      loadBalancerClass: ${apps.hello-app.tailscale.loadBalancerClass}
+        nodePort: ${toString apps.hello-app.nodePort}
+      type: NodePort
   '';
 
   # Create deployment script
