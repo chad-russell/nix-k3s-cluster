@@ -29,13 +29,56 @@ in
 
   # Auto-deploy Kubernetes manifests using the built-in K3s feature
   services.k3s.manifests = lib.mkIf isServer {
-    # Just the namespace for now - to test if basic functionality works
+    # Namespace
     namespaces = {
       content = {
         apiVersion = "v1";
         kind = "Namespace";
         metadata = {
-          name = "applications";
+          name = appConfig.namespace;
+        };
+      };
+    };
+
+    # Hello-app deployment (testing deployment manifest)
+    hello-app = {
+      content = {
+        apiVersion = "apps/v1";
+        kind = "Deployment";
+        metadata = {
+          name = "hello-app";
+          namespace = appConfig.namespace;
+          labels = {
+            app = "hello-app";
+          };
+        };
+        spec = {
+          replicas = appConfig.helloApp.replicas;
+          selector = {
+            matchLabels = {
+              app = "hello-app";
+            };
+          };
+          template = {
+            metadata = {
+              labels = {
+                app = "hello-app";
+              };
+            };
+            spec = {
+              containers = [{
+                name = "hello-app";
+                image = appConfig.helloApp.image;
+                ports = [{ 
+                  containerPort = appConfig.helloApp.containerPort; 
+                }];
+                env = [{ 
+                  name = "PORT"; 
+                  value = toString appConfig.helloApp.containerPort; 
+                }];
+              }];
+            };
+          };
         };
       };
     };
