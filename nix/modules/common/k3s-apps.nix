@@ -43,7 +43,7 @@ in
 {
   # This configuration will only be applied on the k3s server node
   # because k3s-apps.nix is imported in k3s-server.nix profile.
-  services.k3s.extraManifests = [
+  services.k3s.manifests = [
     helloWorldAppManifest
   ];
 }
