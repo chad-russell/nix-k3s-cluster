@@ -3,7 +3,7 @@
 
 let
   # Configuration variables - centralized for easy maintenance
-  k3s = {
+  k3sConfig = {
     # K3s server configuration
     server = {
       hostname = "core1";  # Tailscale hostname of the k3s server
@@ -24,7 +24,7 @@ let
   };
 
   # Construct the k3s server URL using Tailscale DNS
-  k3sServerUrl = "https://${k3s.server.hostname}:${toString k3s.server.port}";
+  k3sServerUrl = "https://${k3sConfig.server.hostname}:${toString k3sConfig.server.port}";
 in
 
 {
@@ -61,7 +61,7 @@ in
     enable = true;
     # Declaratively configure Tailscale to advertise k3s subnets
     extraUpFlags = [
-      "--advertise-routes=${k3s.networks.pods},${k3s.networks.services}"  # k3s pod and service CIDRs
+      "--advertise-routes=${k3sConfig.networks.pods},${k3sConfig.networks.services}"  # k3s pod and service CIDRs
       "--accept-routes"                                                   # Accept routes from other nodes
       "--ssh"                                                             # Enable SSH access
     ];
@@ -81,26 +81,26 @@ in
     trustedInterfaces = [ tailscale.interface ];
     
     # Allow k3s API server traffic (for agents connecting to server)
-    allowedTCPPorts = [ k3s.server.port ];
+    allowedTCPPorts = [ k3sConfig.server.port ];
     
     # Additional firewall rules for k3s cluster communication
     extraCommands = ''
       # Allow traffic from Tailscale network to k3s subnets
-      iptables -A nixos-fw -s ${tailscale.network} -d ${k3s.networks.pods} -j ACCEPT
-      iptables -A nixos-fw -s ${tailscale.network} -d ${k3s.networks.services} -j ACCEPT
+      iptables -A nixos-fw -s ${tailscale.network} -d ${k3sConfig.networks.pods} -j ACCEPT
+      iptables -A nixos-fw -s ${tailscale.network} -d ${k3sConfig.networks.services} -j ACCEPT
       
       # Allow traffic between k3s subnets (for internal cluster communication)
-      iptables -A nixos-fw -s ${k3s.networks.pods} -d ${k3s.networks.services} -j ACCEPT
-      iptables -A nixos-fw -s ${k3s.networks.services} -d ${k3s.networks.pods} -j ACCEPT
+      iptables -A nixos-fw -s ${k3sConfig.networks.pods} -d ${k3sConfig.networks.services} -j ACCEPT
+      iptables -A nixos-fw -s ${k3sConfig.networks.services} -d ${k3sConfig.networks.pods} -j ACCEPT
     '';
     
     # Cleanup rules when firewall is reloaded
     extraStopCommands = ''
       # Remove our custom rules
-      iptables -D nixos-fw -s ${tailscale.network} -d ${k3s.networks.pods} -j ACCEPT 2>/dev/null || true
-      iptables -D nixos-fw -s ${tailscale.network} -d ${k3s.networks.services} -j ACCEPT 2>/dev/null || true
-      iptables -D nixos-fw -s ${k3s.networks.pods} -d ${k3s.networks.services} -j ACCEPT 2>/dev/null || true
-      iptables -D nixos-fw -s ${k3s.networks.services} -d ${k3s.networks.pods} -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${tailscale.network} -d ${k3sConfig.networks.pods} -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${tailscale.network} -d ${k3sConfig.networks.services} -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${k3sConfig.networks.pods} -d ${k3sConfig.networks.services} -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${k3sConfig.networks.services} -d ${k3sConfig.networks.pods} -j ACCEPT 2>/dev/null || true
     '';
   };
 
