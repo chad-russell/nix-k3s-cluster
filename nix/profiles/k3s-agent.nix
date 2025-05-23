@@ -15,7 +15,8 @@
     
     extraFlags = toString [
       # Agent-specific flags can be added here
-      "--flannel-backend=host-gw"
+      # NOTE: --flannel-backend flag has been deprecated in k3s 1.31+
+      # Flannel backend is now configured via server-side options
     ];
   };
 

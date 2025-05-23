@@ -16,7 +16,8 @@
       "--disable=traefik"
       "--disable=servicelb"
       "--disable=local-storage"
-      "--flannel-backend=host-gw"
+      # NOTE: --flannel-backend flag has been deprecated in k3s 1.31+
+      # Flannel backend is now configured via CNI configuration if needed
     ]);
   };
 
