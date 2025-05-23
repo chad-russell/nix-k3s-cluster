@@ -1,9 +1,6 @@
 # k3s-apps.nix: Auto-deployment of Kubernetes applications
 { config, pkgs, lib, role, flakeRoot, ... }:
 
-let
-  # Removed helloWorldAppManifest
-in
 {
   # This configuration will only be applied on the k3s server node
   # because k3s-apps.nix is imported in k3s-server.nix profile.
@@ -63,7 +60,7 @@ in
             entryPoints = [ "web" ]; # Default Traefik entrypoint for HTTP
             routes = [
               {
-                match = "Host(`hello-world.k3s.crussell.io`)";
+                match = "Host('hello-world.k3s.crussell.io')";
                 kind = "Rule";
                 services = [
                   {
