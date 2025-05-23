@@ -147,6 +147,10 @@ in
                       value = "false";
                     }
                     {
+                      name = "TS_KUBE_SECRET";
+                      value = "";
+                    }
+                    {
                       name = "TS_SERVE_CONFIG";
                       value = builtins.toJSON {
                         TCP = {
