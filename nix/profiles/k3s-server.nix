@@ -10,13 +10,13 @@
   # K3s-specific configurations for server nodes
   services.k3s = {
     role = "server";
-    extraFlags = lib.mkForce (toString [
+    extraFlags = toString [
       # Server-specific flags
       "--disable-cloud-controller"
       "--disable=local-storage"
       # NOTE: --flannel-backend flag has been deprecated in k3s 1.31+
       # Flannel backend is now configured via CNI configuration if needed
-    ]);
+    ];
   };
 
   # Networking settings
