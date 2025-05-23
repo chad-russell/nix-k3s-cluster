@@ -8,8 +8,8 @@ in
 {
   # Configure sops for the Tailscale auth key
   sops.secrets."tailscale-auth-key" = lib.mkIf isServer {
-    sopsFile = "${flakeRoot}/kubernetes/infrastructure/tailscale/secrets.yaml";
-    key = "tailscale_auth_key";
+    sopsFile = "${flakeRoot}/kubernetes/infrastructure/tailscale/secret.yaml";
+    key = "TS_AUTHKEY";
   };
 
   # Create the secret manifest using sops templates
