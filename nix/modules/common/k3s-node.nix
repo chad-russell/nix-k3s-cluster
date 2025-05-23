@@ -48,6 +48,35 @@
     "net.ipv6.conf.all.forwarding" = true;
   };
 
+  # Firewall configuration for Tailscale and k3s
+  networking.firewall = {
+    # Allow traffic on the Tailscale interface
+    trustedInterfaces = [ "tailscale0" ];
+    
+    # Allow k3s API server traffic (for agents connecting to server)
+    allowedTCPPorts = [ 6443 ];
+    
+    # Additional firewall rules for k3s cluster communication
+    extraCommands = ''
+      # Allow traffic from Tailscale network (100.64.0.0/10) to k3s subnets
+      iptables -A nixos-fw -s 100.64.0.0/10 -d 10.42.0.0/16 -j ACCEPT
+      iptables -A nixos-fw -s 100.64.0.0/10 -d 10.43.0.0/16 -j ACCEPT
+      
+      # Allow traffic between k3s subnets (for internal cluster communication)
+      iptables -A nixos-fw -s 10.42.0.0/16 -d 10.43.0.0/16 -j ACCEPT
+      iptables -A nixos-fw -s 10.43.0.0/16 -d 10.42.0.0/16 -j ACCEPT
+    '';
+    
+    # Cleanup rules when firewall is reloaded
+    extraStopCommands = ''
+      # Remove our custom rules
+      iptables -D nixos-fw -s 100.64.0.0/10 -d 10.42.0.0/16 -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s 100.64.0.0/10 -d 10.43.0.0/16 -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s 10.42.0.0/16 -d 10.43.0.0/16 -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s 10.43.0.0/16 -d 10.42.0.0/16 -j ACCEPT 2>/dev/null || true
+    '';
+  };
+
   # Common system packages
   environment.systemPackages = with pkgs; [
     k3s kubectl
