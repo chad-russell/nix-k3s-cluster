@@ -2,7 +2,7 @@
   description = "NixOS k3s cluster flake";
 
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-24.11";
+    nixpkgs.url = "nixpkgs/nixos-24.05";
     flake-utils.url = "github:numtide/flake-utils";
     disko.url = "github:nix-community/disko";
     sops-nix.url = "github:Mic92/sops-nix";
