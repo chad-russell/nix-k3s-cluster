@@ -12,12 +12,6 @@ in
     key = "TS_AUTHKEY";
   };
 
-  # Explicitly disable the old template to prevent broken symlinks
-  sops.templates."tailscale-secret" = lib.mkIf isServer {
-    content = "";
-    path = "/dev/null";  # This effectively disables the old template
-  };
-
   # Create the secret manifest using sops templates for kube-system namespace
   sops.templates."tailscale-secret-kube-system" = lib.mkIf isServer {
     content = builtins.toJSON {
