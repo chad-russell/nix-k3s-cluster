@@ -44,7 +44,29 @@ in
     # Token file is needed for agents and joining servers, using a single common token
     tokenFile = lib.mkIf (role == "agent" || (role == "server" && !initialServer))
                   config.sops.secrets."k3s-node-token".path;
-    extraFlags = [ "--flannel-iface=${tailscale.interface}" ];
+    extraFlags = let
+      baseFlags = [ "--flannel-iface=${tailscale.interface}" ];
+      serverFlags = lib.mkIf (role == "server") [
+        "--node-ip=${config.networking.interfaces.${tailscale.interface}.ipv4.addresses[0].address}"
+        "--advertise-address=${config.networking.interfaces.${tailscale.interface}.ipv4.addresses[0].address}"
+        # Ensure etcd uses the Tailscale IP as well for advertisement
+        "--etcd-advertise-address=${config.networking.interfaces.${tailscale.interface}.ipv4.addresses[0].address}"
+        # This tells other etcd members how to connect to this one
+        "--etcd-listen-address=${config.networking.interfaces.${tailscale.interface}.ipv4.addresses[0].address}:2380"
+
+        # The Kubelet should also prefer the Tailscale IP
+        "--kubelet-arg=node-ip=${config.networking.interfaces.${tailscale.interface}.ipv4.addresses[0].address}"
+      ];
+      # On the initial server, we need to specify how it advertises itself to *itself* for etcd init
+      initialServerEtcdFlags = lib.mkIf (role == "server" && initialServer) [
+         "--etcd-advertise-client-urls=https://${config.networking.interfaces.${tailscale.interface}.ipv4.addresses[0].address}:2379"
+         "--etcd-listen-client-urls=https://${config.networking.interfaces.${tailscale.interface}.ipv4.addresses[0].address}:2379"
+         # Ensure the API server also binds to the tailscale IP for HA joining servers to reach it properly
+         "--apiserver-advertise-address=${config.networking.interfaces.${tailscale.interface}.ipv4.addresses[0].address}"
+         "--apiserver-bind-address=${config.networking.interfaces.${tailscale.interface}.ipv4.addresses[0].address}"
+
+      ];
+    in baseFlags ++ serverFlags ++ initialServerEtcdFlags;
   };
 
   sops.secrets."k3s-node-token" = lib.mkIf (role == "agent" || (role == "server" && !initialServer)) {
