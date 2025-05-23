@@ -2,39 +2,31 @@
 { config, pkgs, lib, role, flakeRoot, ... }:
 
 let
-  # =============================================================================
-  # Configuration Variables - Edit these to match your environment
-  # =============================================================================
-  
-  # K3s cluster configuration
-  k3sConfig = {
-    # Tailscale DNS name of your k3s server node (replace with your actual hostname and tailnet)
-    # Format: hostname.tailnet-name.ts.net
-    serverHostname = "core1.tailac926.ts.net";
-    apiPort = 6443;
+  # Configuration variables - centralized for easy maintenance
+  k3s = {
+    # K3s server configuration
+    server = {
+      hostname = "core1";  # Tailscale hostname of the k3s server
+      port = 6443;         # K3s API server port
+    };
     
-    # K3s network CIDRs (these are the defaults, but now configurable)
-    podCIDR = "10.42.0.0/16";      # Default k3s pod network
-    serviceCIDR = "10.43.0.0/16";  # Default k3s service network
+    # Network CIDRs
+    networks = {
+      pods = "10.42.0.0/16";      # Pod CIDR
+      services = "10.43.0.0/16";  # Service CIDR
+    };
   };
   
   # Tailscale configuration
-  tailscaleConfig = {
-    # Tailscale network CIDR (standard Tailscale range)
-    networkCIDR = "100.64.0.0/10";
-    interface = "tailscale0";
-    
-    # Subnet routes to advertise (k3s networks)
-    advertiseRoutes = [
-      k3sConfig.podCIDR
-      k3sConfig.serviceCIDR
-    ];
+  tailscale = {
+    network = "100.64.0.0/10";  # Tailscale network CIDR
+    interface = "tailscale0";   # Tailscale interface name
   };
-  
-  # Computed values
-  k3sServerUrl = "https://${k3sConfig.serverHostname}:${toString k3sConfig.apiPort}";
-  
+
+  # Construct the k3s server URL using Tailscale DNS
+  k3sServerUrl = "https://${k3s.server.hostname}:${toString k3s.server.port}";
 in
+
 {
   imports = [ ];
 
@@ -69,9 +61,9 @@ in
     enable = true;
     # Declaratively configure Tailscale to advertise k3s subnets
     extraUpFlags = [
-      "--advertise-routes=${lib.concatStringsSep "," tailscaleConfig.advertiseRoutes}"
-      "--accept-routes"  # Accept routes from other nodes
-      "--ssh"            # Enable SSH access
+      "--advertise-routes=${k3s.networks.pods},${k3s.networks.services}"  # k3s pod and service CIDRs
+      "--accept-routes"                                                   # Accept routes from other nodes
+      "--ssh"                                                             # Enable SSH access
     ];
     # Enable IP forwarding for subnet routing
     useRoutingFeatures = "server";
@@ -86,29 +78,29 @@ in
   # Firewall configuration for Tailscale and k3s
   networking.firewall = {
     # Allow traffic on the Tailscale interface
-    trustedInterfaces = [ tailscaleConfig.interface ];
+    trustedInterfaces = [ tailscale.interface ];
     
     # Allow k3s API server traffic (for agents connecting to server)
-    allowedTCPPorts = [ k3sConfig.apiPort ];
+    allowedTCPPorts = [ k3s.server.port ];
     
     # Additional firewall rules for k3s cluster communication
     extraCommands = ''
       # Allow traffic from Tailscale network to k3s subnets
-      iptables -A nixos-fw -s ${tailscaleConfig.networkCIDR} -d ${k3sConfig.podCIDR} -j ACCEPT
-      iptables -A nixos-fw -s ${tailscaleConfig.networkCIDR} -d ${k3sConfig.serviceCIDR} -j ACCEPT
+      iptables -A nixos-fw -s ${tailscale.network} -d ${k3s.networks.pods} -j ACCEPT
+      iptables -A nixos-fw -s ${tailscale.network} -d ${k3s.networks.services} -j ACCEPT
       
       # Allow traffic between k3s subnets (for internal cluster communication)
-      iptables -A nixos-fw -s ${k3sConfig.podCIDR} -d ${k3sConfig.serviceCIDR} -j ACCEPT
-      iptables -A nixos-fw -s ${k3sConfig.serviceCIDR} -d ${k3sConfig.podCIDR} -j ACCEPT
+      iptables -A nixos-fw -s ${k3s.networks.pods} -d ${k3s.networks.services} -j ACCEPT
+      iptables -A nixos-fw -s ${k3s.networks.services} -d ${k3s.networks.pods} -j ACCEPT
     '';
     
     # Cleanup rules when firewall is reloaded
     extraStopCommands = ''
       # Remove our custom rules
-      iptables -D nixos-fw -s ${tailscaleConfig.networkCIDR} -d ${k3sConfig.podCIDR} -j ACCEPT 2>/dev/null || true
-      iptables -D nixos-fw -s ${tailscaleConfig.networkCIDR} -d ${k3sConfig.serviceCIDR} -j ACCEPT 2>/dev/null || true
-      iptables -D nixos-fw -s ${k3sConfig.podCIDR} -d ${k3sConfig.serviceCIDR} -j ACCEPT 2>/dev/null || true
-      iptables -D nixos-fw -s ${k3sConfig.serviceCIDR} -d ${k3sConfig.podCIDR} -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${tailscale.network} -d ${k3s.networks.pods} -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${tailscale.network} -d ${k3s.networks.services} -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${k3s.networks.pods} -d ${k3s.networks.services} -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${k3s.networks.services} -d ${k3s.networks.pods} -j ACCEPT 2>/dev/null || true
     '';
   };
 
