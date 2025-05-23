@@ -35,25 +35,25 @@ in
         apiVersion = "v1";
         kind = "Namespace";
         metadata = {
-          name = appConfig.namespace;
+          name = "applications";
         };
       };
     };
 
-    # Hello-app deployment (testing deployment manifest)
+    # Hello-app deployment (simplified without variables)
     hello-app = {
       content = {
         apiVersion = "apps/v1";
         kind = "Deployment";
         metadata = {
           name = "hello-app";
-          namespace = appConfig.namespace;
+          namespace = "applications";
           labels = {
             app = "hello-app";
           };
         };
         spec = {
-          replicas = appConfig.helloApp.replicas;
+          replicas = 2;
           selector = {
             matchLabels = {
               app = "hello-app";
@@ -68,13 +68,13 @@ in
             spec = {
               containers = [{
                 name = "hello-app";
-                image = appConfig.helloApp.image;
+                image = "chadrussell/hello-app:latest";
                 ports = [{ 
-                  containerPort = appConfig.helloApp.containerPort; 
+                  containerPort = 8080; 
                 }];
                 env = [{ 
                   name = "PORT"; 
-                  value = toString appConfig.helloApp.containerPort; 
+                  value = "8080"; 
                 }];
               }];
             };
