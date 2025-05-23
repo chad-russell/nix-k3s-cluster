@@ -144,14 +144,13 @@ in
                     }
                     {
                       name = "TS_USERSPACE";
-                      value = "false";
+                      value = "true";
                     }
                     {
                       name = "TS_KUBE_SECRET";
                       value = "";
                     }
                   ];
-                  securityContext.capabilities.add = [ "NET_ADMIN" ];
                   volumeMounts = [{
                     name = "tailscale-state";
                     mountPath = "/var/lib/tailscale";
