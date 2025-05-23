@@ -1,255 +1,89 @@
 # Simple Tailscale Integration - Much Simpler Alternative!
 # This approach uses a Tailscale sidecar container instead of the complex operator
-apiVersion: v1
-kind: Secret
-metadata:
-    name: tailscale-auth
-    namespace: applications
-type: Opaque
-stringData:
-    #ENC[AES256_GCM,data:eZRxVQwcLKA8/iOS/ftDJvawHNS6iGeF66NXLPMvGAaH7Q7hoavp10ZuFB9jTGyPxxO3tQS7xQ+2XBbIO5Aj,iv:srXJ3cgYjR7tFSMLEStZhSY2SSfwqJ5RcTKTIafY5PI=,tag:t5fwgudtun7CNnYPIaQsBw==,type:comment]
-    #ENC[AES256_GCM,data:7Ojckec5c3Dd3lid1ERIylrWXISOKnHRx4e3ATf9sc3biUQZxegTqG5FV9rYW4Yt,iv:h5E7fq3XRV3VjaPz+Jw+ZSjyCCmVvkW78hKBSomzw1Q=,tag:6EiaDZS/rilk77FW5aq6fg==,type:comment]
-    #ENC[AES256_GCM,data:r3BBfJ/s03yRWiRxyFzcj6JcRZUMtCmEJ8nS/g320vahnB/B9cDj8ytl,iv:/lHqgegnPcooqLDa3CMn3NrTnFqw/6sGqExuSCBds/Q=,tag:ym/2G4cxNE6IXApJCk0VZQ==,type:comment]
-    #ENC[AES256_GCM,data:D+dxpudn/J4AydUiQh0MwdT7jEcDpnQW7v/lk37uqdVVcxDSTf/NEZOYxWu1T0i4ng3K25mc,iv:ZWLl9lLB9CVLIzGO6CZlWOCHo1r/mPz6cCdMaPlzufM=,tag:AFR7aOXvT9qDzyvKaPZ5TA==,type:comment]
-    #ENC[AES256_GCM,data:2mzzIBCmPEgI1W1Khpu18RRgMnQQiueNuDVNhEUkfP0RCjV9ZhOl,iv:CuC/GzPrHwimRjoOCCqLx4TnT04aCpE00nUMbyunaQc=,tag:xuIWiObwFK7EesgfNQypDA==,type:comment]
-    TS_AUTHKEY: ENC[AES256_GCM,data:J20D3+/3SIZDH2HpBGDP8Ai4ajppz55sIJtRVg9FFwILBnleWyx01L2CzCdS5rMu1iokJyi3Lirag8h2YA==,iv:MW4KeUski/EbWOBHqVQ3JxoAbt5TWdarwQo3xRLKOog=,tag:CNYNqNr6amp6TJQDqf8q6Q==,type:str]
-sops:
-    age:
-        - recipient: age12lhj5rwp25uxpp5dkaa6z998m7mmwcg7dequc46a68x46zdza4sqa7uezf
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB6M3pKNmpYNGMvak5WWXdL
-            SFFkczh4cDlBZFFHVTFYaHF4M1FLMDYvT20wCldWMmpQSXNxWGRSYXBtaDJqbzZh
-            c3EwOGF2KzYxOTJlZzlqck1QUzcycHcKLS0tIG5rdEc5RWFJN2NGYkdiNVYwMkdK
-            LzVHM2VhSUZ3MTc1cDJZdFdGSVJJL2MK3WY5QqjdbYpY4pWv72FEOveaNAfTP1qd
-            ZFro8iNZ0/mtJ6/SfmaPZA+taUhCj6WucqFPCWYu7fdnis5uQ27MwA==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age1262ecjgugtm72dcdzxzk5gdeays4rxnedqrv280lvkfpwz5q5pnqdgc3ar
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBlUlpzd1JVUHJXeUJYQzBN
-            bW5vWmNnUGJKWVRaK1R3b0NCU25id0Zpd2lzCmxYZ0Y1aVRUeW9neTQyc0dhd2NS
-            VnFIR01ubHZFSEt6d0ZCQVpjeFlkVm8KLS0tIGltYlZyUmdSdklBNERvSit3bFQx
-            U3FGR1dBKzIyaUxoL0JCdGxzb2gwN2sKO2M2mj8qTpKTSYVFd2cno2SGb4rE3Cug
-            cAtmzqYnBBbETkQAd26kaEa5K7rwjRo+Mh620aWIojOCULhmSUj/Vg==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age1au4hsdvem84xgzf7tr2ckpwx2us4hnrkdy2ty45fc9q2exk8rfkq4x46jl
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBnMy8xWld6S2paZTJhd1Vr
-            SGxzN2JVMHhpU2NxdFU0VVh3bVRIeENWN1NFCmxscU5SWWUvNDFScmZZOUNWYVhZ
-            ZWEyeXF3Z0l4UUVSN1ZoNUR1dUFncDAKLS0tIHhWM0xtRFgvbStkMkdtcUZUelVa
-            WEtYeXZPRHp0NlhGYk02ZGhWclZGTjQKQrnN0Gl3/Mj7ziVfXZKuyMT/SL8xPVQs
-            11TyHpDkFq51hj4tTrVKon+6nSsE7hiDRFBHMy6xjmUIYZyyp+XcXQ==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age1rhfxwge48gwa7nw9ca434slcp2neallqjfwas6vstd2sm674nvwqkj8tw2
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSA4OFN1bm1pTUhQVnJvTEhY
-            Tm1aRDFQbllNVkM5c201WWhhRDIzaFUwTkRJCk10ZVVtNlk5L0hoWnpzaUVlWHpn
-            U2o1eTBiandZN1JQM2Y0dVJjTTBwL0kKLS0tIHlCdW1EeTVyZlFWeUZmNTNNWEU1
-            aityZ1hoMFdwNVdLSDArcWtFYVcvYUkKmmXJS2oIxwMLeOSslQUknb+Alumeveox
-            laGaXK92YbVNZvKTnPHO6+mmFY0w12y7JBeTGbpbl69T3CgDbPW33g==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age177ejdf73ajf7grjhd5m8ksalqldlpwg46lfek79nzkaael9k7v5ssfaj2q
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBXNDR3bXRJQXV1ZVRVUmhy
-            TFpldTdIbkRUTDhIWCs0bmVKMGNuekh0T1NRCnJrU1RuSkZHMFJZcHc4VVRHNkkx
-            eHVGNS82ajlON3dRNnByazRPRjZGKzAKLS0tIGVZalNDOCtrSXpPWFBjY3dzcEJQ
-            d2NTOFZiNVE2QUp0NjNRTG0wSTNOMUUKoJcieUiUf2CN5F9E4kye0bJ1ODBABfqG
-            p8jh7Pdk1W11Zvz6CwVfXjvUa9bNl4s6dmYsnYHxPiRK5EapF569OQ==
-            -----END AGE ENCRYPTED FILE-----
-    lastmodified: "2025-05-23T02:34:00Z"
-    mac: ENC[AES256_GCM,data:dbWX0Ahp/bhK8gKODmWclTQojlWQKINaoQfgvIsyuskxGFbLsotnDdWVLyEQtxuoBBBpHx6roAWBTxkZR8RSWpTsknRKSJV6HzUTHMpN4wVE3DpZxTbIiQlxC8Q/6PjkZ16bGB5ilug5015KeFG29xoaQ3tL+5FVBWGoEhsY5dg=,iv:rWtec5CcxwdXj++J+YwqFAk751H7/C0NweLxtBhCpeM=,tag:MnbGnk1wZM3/thc+AWwIPg==,type:str]
-    encrypted_regex: ^(data|stringData)$
-    version: 3.10.2
----
+
 # Updated hello-app deployment with Tailscale sidecar
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: hello-app
-    namespace: applications
+  name: hello-app
+  namespace: applications
 spec:
-    replicas: 2
-    selector:
-        matchLabels:
-            app: hello-app
-    template:
-        metadata:
-            labels:
-                app: hello-app
-        spec:
-            serviceAccountName: default
-            containers:
-                # Your existing hello-app container
-                - name: hello-app
-                  image: gcr.io/google-samples/hello-app:1.0
-                  ports:
-                    - containerPort: 8080
-                  env:
-                    - name: PORT
-                      value: "8080"
-                # Simple Tailscale sidecar - this is the magic!
-                - name: tailscale
-                  image: tailscale/tailscale:latest
-                  env:
-                    - name: TS_AUTHKEY
-                      valueFrom:
-                        secretKeyRef:
-                            name: tailscale-auth
-                            key: TS_AUTHKEY
-                    - name: TS_SERVE_CONFIG
-                      value: |
-                        {
-                          "TCP": {
-                            "443": {
-                              "HTTPS": true
-                            },
-                            "80": {
-                              "HTTP": true
-                            }
-                          },
-                          "Web": {
-                            "hello-app-k3s:443": {
-                              "Handlers": {
-                                "/": {
-                                  "Proxy": "http://127.0.0.1:8080"
-                                }
-                              }
-                            }
-                          }
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hello-app
+  template:
+    metadata:
+      labels:
+        app: hello-app
+    spec:
+      serviceAccountName: default
+      containers:
+        # Your existing hello-app container
+        - name: hello-app
+          image: gcr.io/google-samples/hello-app:1.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+        # Simple Tailscale sidecar - this is the magic!
+        - name: tailscale
+          image: tailscale/tailscale:latest
+          env:
+            - name: TS_AUTHKEY
+              valueFrom:
+                secretKeyRef:
+                  name: tailscale-auth
+                  key: TS_AUTHKEY
+            - name: TS_SERVE_CONFIG
+              value: |
+                {
+                  "TCP": {
+                    "443": {
+                      "HTTPS": true
+                    },
+                    "80": {
+                      "HTTP": true
+                    }
+                  },
+                  "Web": {
+                    "hello-app-k3s:443": {
+                      "Handlers": {
+                        "/": {
+                          "Proxy": "http://127.0.0.1:8080"
                         }
-                    - name: TS_HOSTNAME
-                      value: hello-app-k3s
-                    - name: TS_STATE_DIR
-                      value: /var/lib/tailscale
-                  securityContext:
-                    capabilities:
-                        add:
-                            - NET_ADMIN
-                  volumeMounts:
-                    - name: tailscale-state
-                      mountPath: /var/lib/tailscale
-            volumes:
-                - name: tailscale-state
-                  emptyDir: {}
-sops:
-    age:
-        - recipient: age12lhj5rwp25uxpp5dkaa6z998m7mmwcg7dequc46a68x46zdza4sqa7uezf
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB6M3pKNmpYNGMvak5WWXdL
-            SFFkczh4cDlBZFFHVTFYaHF4M1FLMDYvT20wCldWMmpQSXNxWGRSYXBtaDJqbzZh
-            c3EwOGF2KzYxOTJlZzlqck1QUzcycHcKLS0tIG5rdEc5RWFJN2NGYkdiNVYwMkdK
-            LzVHM2VhSUZ3MTc1cDJZdFdGSVJJL2MK3WY5QqjdbYpY4pWv72FEOveaNAfTP1qd
-            ZFro8iNZ0/mtJ6/SfmaPZA+taUhCj6WucqFPCWYu7fdnis5uQ27MwA==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age1262ecjgugtm72dcdzxzk5gdeays4rxnedqrv280lvkfpwz5q5pnqdgc3ar
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBlUlpzd1JVUHJXeUJYQzBN
-            bW5vWmNnUGJKWVRaK1R3b0NCU25id0Zpd2lzCmxYZ0Y1aVRUeW9neTQyc0dhd2NS
-            VnFIR01ubHZFSEt6d0ZCQVpjeFlkVm8KLS0tIGltYlZyUmdSdklBNERvSit3bFQx
-            U3FGR1dBKzIyaUxoL0JCdGxzb2gwN2sKO2M2mj8qTpKTSYVFd2cno2SGb4rE3Cug
-            cAtmzqYnBBbETkQAd26kaEa5K7rwjRo+Mh620aWIojOCULhmSUj/Vg==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age1au4hsdvem84xgzf7tr2ckpwx2us4hnrkdy2ty45fc9q2exk8rfkq4x46jl
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBnMy8xWld6S2paZTJhd1Vr
-            SGxzN2JVMHhpU2NxdFU0VVh3bVRIeENWN1NFCmxscU5SWWUvNDFScmZZOUNWYVhZ
-            ZWEyeXF3Z0l4UUVSN1ZoNUR1dUFncDAKLS0tIHhWM0xtRFgvbStkMkdtcUZUelVa
-            WEtYeXZPRHp0NlhGYk02ZGhWclZGTjQKQrnN0Gl3/Mj7ziVfXZKuyMT/SL8xPVQs
-            11TyHpDkFq51hj4tTrVKon+6nSsE7hiDRFBHMy6xjmUIYZyyp+XcXQ==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age1rhfxwge48gwa7nw9ca434slcp2neallqjfwas6vstd2sm674nvwqkj8tw2
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSA4OFN1bm1pTUhQVnJvTEhY
-            Tm1aRDFQbllNVkM5c201WWhhRDIzaFUwTkRJCk10ZVVtNlk5L0hoWnpzaUVlWHpn
-            U2o1eTBiandZN1JQM2Y0dVJjTTBwL0kKLS0tIHlCdW1EeTVyZlFWeUZmNTNNWEU1
-            aityZ1hoMFdwNVdLSDArcWtFYVcvYUkKmmXJS2oIxwMLeOSslQUknb+Alumeveox
-            laGaXK92YbVNZvKTnPHO6+mmFY0w12y7JBeTGbpbl69T3CgDbPW33g==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age177ejdf73ajf7grjhd5m8ksalqldlpwg46lfek79nzkaael9k7v5ssfaj2q
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBXNDR3bXRJQXV1ZVRVUmhy
-            TFpldTdIbkRUTDhIWCs0bmVKMGNuekh0T1NRCnJrU1RuSkZHMFJZcHc4VVRHNkkx
-            eHVGNS82ajlON3dRNnByazRPRjZGKzAKLS0tIGVZalNDOCtrSXpPWFBjY3dzcEJQ
-            d2NTOFZiNVE2QUp0NjNRTG0wSTNOMUUKoJcieUiUf2CN5F9E4kye0bJ1ODBABfqG
-            p8jh7Pdk1W11Zvz6CwVfXjvUa9bNl4s6dmYsnYHxPiRK5EapF569OQ==
-            -----END AGE ENCRYPTED FILE-----
-    lastmodified: "2025-05-23T02:34:00Z"
-    mac: ENC[AES256_GCM,data:dbWX0Ahp/bhK8gKODmWclTQojlWQKINaoQfgvIsyuskxGFbLsotnDdWVLyEQtxuoBBBpHx6roAWBTxkZR8RSWpTsknRKSJV6HzUTHMpN4wVE3DpZxTbIiQlxC8Q/6PjkZ16bGB5ilug5015KeFG29xoaQ3tL+5FVBWGoEhsY5dg=,iv:rWtec5CcxwdXj++J+YwqFAk751H7/C0NweLxtBhCpeM=,tag:MnbGnk1wZM3/thc+AWwIPg==,type:str]
-    encrypted_regex: ^(data|stringData)$
-    version: 3.10.2
+                      }
+                    }
+                  }
+                }
+            - name: TS_HOSTNAME
+              value: hello-app-k3s
+            - name: TS_STATE_DIR
+              value: /var/lib/tailscale
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+          volumeMounts:
+            - name: tailscale-state
+              mountPath: /var/lib/tailscale
+      volumes:
+        - name: tailscale-state
+          emptyDir: {}
 ---
 # Simple ClusterIP service (no LoadBalancer needed!)
 apiVersion: v1
 kind: Service
 metadata:
-    name: hello-app-service
-    namespace: applications
+  name: hello-app-service
+  namespace: applications
 spec:
-    selector:
-        app: hello-app
-    ports:
-        - protocol: TCP
-          port: 80
-          targetPort: 8080
-    # Much simpler than LoadBalancer!
-    type: ClusterIP
-sops:
-    age:
-        - recipient: age12lhj5rwp25uxpp5dkaa6z998m7mmwcg7dequc46a68x46zdza4sqa7uezf
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB6M3pKNmpYNGMvak5WWXdL
-            SFFkczh4cDlBZFFHVTFYaHF4M1FLMDYvT20wCldWMmpQSXNxWGRSYXBtaDJqbzZh
-            c3EwOGF2KzYxOTJlZzlqck1QUzcycHcKLS0tIG5rdEc5RWFJN2NGYkdiNVYwMkdK
-            LzVHM2VhSUZ3MTc1cDJZdFdGSVJJL2MK3WY5QqjdbYpY4pWv72FEOveaNAfTP1qd
-            ZFro8iNZ0/mtJ6/SfmaPZA+taUhCj6WucqFPCWYu7fdnis5uQ27MwA==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age1262ecjgugtm72dcdzxzk5gdeays4rxnedqrv280lvkfpwz5q5pnqdgc3ar
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBlUlpzd1JVUHJXeUJYQzBN
-            bW5vWmNnUGJKWVRaK1R3b0NCU25id0Zpd2lzCmxYZ0Y1aVRUeW9neTQyc0dhd2NS
-            VnFIR01ubHZFSEt6d0ZCQVpjeFlkVm8KLS0tIGltYlZyUmdSdklBNERvSit3bFQx
-            U3FGR1dBKzIyaUxoL0JCdGxzb2gwN2sKO2M2mj8qTpKTSYVFd2cno2SGb4rE3Cug
-            cAtmzqYnBBbETkQAd26kaEa5K7rwjRo+Mh620aWIojOCULhmSUj/Vg==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age1au4hsdvem84xgzf7tr2ckpwx2us4hnrkdy2ty45fc9q2exk8rfkq4x46jl
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBnMy8xWld6S2paZTJhd1Vr
-            SGxzN2JVMHhpU2NxdFU0VVh3bVRIeENWN1NFCmxscU5SWWUvNDFScmZZOUNWYVhZ
-            ZWEyeXF3Z0l4UUVSN1ZoNUR1dUFncDAKLS0tIHhWM0xtRFgvbStkMkdtcUZUelVa
-            WEtYeXZPRHp0NlhGYk02ZGhWclZGTjQKQrnN0Gl3/Mj7ziVfXZKuyMT/SL8xPVQs
-            11TyHpDkFq51hj4tTrVKon+6nSsE7hiDRFBHMy6xjmUIYZyyp+XcXQ==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age1rhfxwge48gwa7nw9ca434slcp2neallqjfwas6vstd2sm674nvwqkj8tw2
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSA4OFN1bm1pTUhQVnJvTEhY
-            Tm1aRDFQbllNVkM5c201WWhhRDIzaFUwTkRJCk10ZVVtNlk5L0hoWnpzaUVlWHpn
-            U2o1eTBiandZN1JQM2Y0dVJjTTBwL0kKLS0tIHlCdW1EeTVyZlFWeUZmNTNNWEU1
-            aityZ1hoMFdwNVdLSDArcWtFYVcvYUkKmmXJS2oIxwMLeOSslQUknb+Alumeveox
-            laGaXK92YbVNZvKTnPHO6+mmFY0w12y7JBeTGbpbl69T3CgDbPW33g==
-            -----END AGE ENCRYPTED FILE-----
-        - recipient: age177ejdf73ajf7grjhd5m8ksalqldlpwg46lfek79nzkaael9k7v5ssfaj2q
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBXNDR3bXRJQXV1ZVRVUmhy
-            TFpldTdIbkRUTDhIWCs0bmVKMGNuekh0T1NRCnJrU1RuSkZHMFJZcHc4VVRHNkkx
-            eHVGNS82ajlON3dRNnByazRPRjZGKzAKLS0tIGVZalNDOCtrSXpPWFBjY3dzcEJQ
-            d2NTOFZiNVE2QUp0NjNRTG0wSTNOMUUKoJcieUiUf2CN5F9E4kye0bJ1ODBABfqG
-            p8jh7Pdk1W11Zvz6CwVfXjvUa9bNl4s6dmYsnYHxPiRK5EapF569OQ==
-            -----END AGE ENCRYPTED FILE-----
-    lastmodified: "2025-05-23T02:34:00Z"
-    mac: ENC[AES256_GCM,data:dbWX0Ahp/bhK8gKODmWclTQojlWQKINaoQfgvIsyuskxGFbLsotnDdWVLyEQtxuoBBBpHx6roAWBTxkZR8RSWpTsknRKSJV6HzUTHMpN4wVE3DpZxTbIiQlxC8Q/6PjkZ16bGB5ilug5015KeFG29xoaQ3tL+5FVBWGoEhsY5dg=,iv:rWtec5CcxwdXj++J+YwqFAk751H7/C0NweLxtBhCpeM=,tag:MnbGnk1wZM3/thc+AWwIPg==,type:str]
-    encrypted_regex: ^(data|stringData)$
-    version: 3.10.2
+  selector:
+    app: hello-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  # Much simpler than LoadBalancer!
+  type: ClusterIP
