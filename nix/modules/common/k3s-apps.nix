@@ -40,6 +40,64 @@ in
       };
     };
 
+    # Tailscale ServiceAccount
+    tailscale-serviceaccount = {
+      content = {
+        apiVersion = "v1";
+        kind = "ServiceAccount";
+        metadata = {
+          name = "tailscale";
+          namespace = "applications";
+        };
+      };
+    };
+
+    # Tailscale Role
+    tailscale-role = {
+      content = {
+        apiVersion = "rbac.authorization.k8s.io/v1";
+        kind = "Role";
+        metadata = {
+          namespace = "applications";
+          name = "tailscale";
+        };
+        rules = [
+          {
+            apiGroups = [ "" ];
+            resources = [ "secrets" ];
+            verbs = [ "create" "get" "update" "patch" ];
+          }
+          {
+            apiGroups = [ "" ];
+            resources = [ "events" ];
+            verbs = [ "create" "get" "patch" ];
+          }
+        ];
+      };
+    };
+
+    # Tailscale RoleBinding
+    tailscale-rolebinding = {
+      content = {
+        apiVersion = "rbac.authorization.k8s.io/v1";
+        kind = "RoleBinding";
+        metadata = {
+          name = "tailscale";
+          namespace = "applications";
+        };
+        subjects = [{
+          kind = "ServiceAccount";
+          name = "tailscale";
+          namespace = "applications";
+        }];
+        roleRef = {
+          kind = "Role";
+          name = "tailscale";
+          apiGroup = "rbac.authorization.k8s.io";
+        };
+      };
+    };
+
     # Hello app with Tailscale sidecar
     hello-app = {
       content = {
@@ -55,7 +113,7 @@ in
           template = {
             metadata.labels.app = "hello-app";
             spec = {
-              serviceAccountName = "default";
+              serviceAccountName = "tailscale";
               containers = [
                 # Main hello-app container
                 {
@@ -75,6 +133,18 @@ in
                         name = "tailscale-auth";
                         key = "TS_AUTHKEY";
                       };
+                    }
+                    {
+                      name = "TS_KUBE_SECRET";
+                      value = "tailscale";
+                    }
+                    {
+                      name = "POD_NAME";
+                      valueFrom.fieldRef.fieldPath = "metadata.name";
+                    }
+                    {
+                      name = "POD_UID";
+                      valueFrom.fieldRef.fieldPath = "metadata.uid";
                     }
                     {
                       name = "TS_SERVE_CONFIG";
