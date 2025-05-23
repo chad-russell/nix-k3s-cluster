@@ -37,6 +37,7 @@
     extraUpFlags = [
       "--advertise-routes=10.42.0.0/16,10.43.0.0/16"  # k3s pod and service CIDRs
       "--accept-routes"                                # Accept routes from other nodes
+      "--ssh"                                          # Enable SSH access (matches current config)
     ];
     # Enable IP forwarding for subnet routing
     useRoutingFeatures = "server";
