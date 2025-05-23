@@ -36,8 +36,22 @@ let
         - protocol: TCP
           port: 80       # Internal port within the cluster for this service
           targetPort: 80 # Port on the nginx pods
-          nodePort: 30080 # External port accessible on each node's IP
-      type: NodePort
+      type: ClusterIP
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: hello-world-ingress
+      namespace: default # Assuming your app is in the default namespace
+    spec:
+      entryPoints:
+        - web # Default Traefik entrypoint for HTTP
+      routes:
+        - match: Host(`hello-world.k3s.local`)
+          kind: Rule
+          services:
+            - name: hello-world-service
+              port: 80
   '';
 in
 {

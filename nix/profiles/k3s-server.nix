@@ -13,7 +13,6 @@
     extraFlags = lib.mkForce (toString [
       # Server-specific flags
       "--disable-cloud-controller"
-      "--disable=traefik"
       "--disable=servicelb"
       "--disable=local-storage"
       # NOTE: --flannel-backend flag has been deprecated in k3s 1.31+
