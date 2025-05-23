@@ -30,9 +30,22 @@
     # mode = "0400"; # Read-only by owner
   };
 
-  # Tailscale for networking
+  # Tailscale for networking with k3s subnet routing
   services.tailscale = {
     enable = true;
+    # Declaratively configure Tailscale to advertise k3s subnets
+    extraUpFlags = [
+      "--advertise-routes=10.42.0.0/16,10.43.0.0/16"  # k3s pod and service CIDRs
+      "--accept-routes"                                # Accept routes from other nodes
+    ];
+    # Enable IP forwarding for subnet routing
+    useRoutingFeatures = "server";
+  };
+
+  # Explicitly enable IP forwarding (in case of conflicts)
+  boot.kernel.sysctl = {
+    "net.ipv4.ip_forward" = true;
+    "net.ipv6.conf.all.forwarding" = true;
   };
 
   # Common system packages

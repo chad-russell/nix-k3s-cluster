@@ -25,8 +25,6 @@ A fully declarative NixOS-managed Kubernetes (K3s) cluster with automatic applic
 │   └── profiles/        # Reusable profiles for different node types
 ├── kubernetes/          # Kubernetes manifests (reference/legacy)
 │   ├── apps/            # Application deployments
-│   ├── infrastructure/  # Infrastructure configurations
-│   │   └── tailscale/   # Tailscale sidecar configs (encrypted)
 │   └── kustomize/       # Legacy kustomize configs
 ├── secrets/             # Encrypted secrets (managed by sops-nix)
 └── docs/                # Documentation

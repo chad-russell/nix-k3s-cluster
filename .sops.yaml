@@ -6,29 +6,6 @@ keys:
   - &core3_key age1rhfxwge48gwa7nw9ca434slcp2neallqjfwas6vstd2sm674nvwqkj8tw2
   - &core4_key age177ejdf73ajf7grjhd5m8ksalqldlpwg46lfek79nzkaael9k7v5ssfaj2q
 creation_rules:
-  # Encrypt the dedicated tailscale secret file (only data/stringData fields)
-  - path_regex: kubernetes/infrastructure/tailscale/secret\.yaml$
-    encrypted_regex: ^(data|stringData)$
-    pgp: ""
-    key_groups:
-      - age:
-          - *admin_key
-          - *core1_key
-          - *core2_key
-          - *core3_key
-          - *core4_key
-
-  # Encrypt the nixos-specific tailscale secrets file
-  - path_regex: kubernetes/infrastructure/tailscale/nixos-secrets\.yaml$
-    pgp: ""
-    key_groups:
-      - age:
-          - *admin_key
-          - *core1_key
-          - *core2_key
-          - *core3_key
-          - *core4_key
-
   # Specific rule for the k3s agent node token
   - path_regex: ^secrets/k3s-agent-node-token$
     pgp: ""

@@ -15,8 +15,6 @@ Applications are deployed using the built-in K3s manifest deployment feature via
 ```
 kubernetes/
 ├── apps/                    # Legacy YAML files (for reference)
-├── infrastructure/         # Infrastructure configurations
-│   └── tailscale/          # Tailscale sidecar configs (encrypted)
 └── kustomize/              # Legacy kustomize configs (now empty)
 ```
 
