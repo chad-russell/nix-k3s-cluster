@@ -4,27 +4,6 @@
 let
   # Only deploy apps on the server node
   isServer = role == "server";
-  
-  # Application configuration variables - centralized for easy maintenance
-  apps = {
-    hello-app = {
-      name = "hello-app";
-      namespace = "applications";
-      image = "chadrussell/hello-app:latest";
-      replicas = 2;
-      containerPort = 8080;
-      servicePort = 80;
-      tailscale = {
-        hostname = "hello-app-k3s";
-        loadBalancerClass = "tailscale";
-      };
-    };
-  };
-  
-  # Namespace configuration
-  namespaces = {
-    applications = "applications";
-  };
 in
 {
   # Configure sops for any application secrets that might be needed
@@ -32,78 +11,74 @@ in
 
   # Auto-deploy Kubernetes manifests using the built-in K3s feature
   services.k3s.manifests = lib.mkIf isServer {
-    # Namespaces
-    namespaces = {
-      content = {
-        apiVersion = "v1";
-        kind = "Namespace";
-        metadata.name = namespaces.applications;
+    # Create applications namespace
+    applications-namespace.content = {
+      apiVersion = "v1";
+      kind = "Namespace";
+      metadata = {
+        name = "applications";
       };
     };
 
     # Hello app deployment
-    hello-app-deployment = {
-      content = {
-        apiVersion = "apps/v1";
-        kind = "Deployment";
-        metadata = {
-          name = apps.hello-app.name;
-          namespace = apps.hello-app.namespace;
-          labels = {
-            app = apps.hello-app.name;
+    hello-app-deployment.content = {
+      apiVersion = "apps/v1";
+      kind = "Deployment";
+      metadata = {
+        name = "hello-app";
+        namespace = "applications";
+        labels = {
+          app = "hello-app";
+        };
+      };
+      spec = {
+        replicas = 2;
+        selector = {
+          matchLabels = {
+            app = "hello-app";
           };
         };
-        spec = {
-          replicas = apps.hello-app.replicas;
-          selector = {
-            matchLabels = {
-              app = apps.hello-app.name;
+        template = {
+          metadata = {
+            labels = {
+              app = "hello-app";
             };
           };
-          template = {
-            metadata = {
-              labels = {
-                app = apps.hello-app.name;
-              };
-            };
-            spec = {
-              containers = [{
-                name = apps.hello-app.name;
-                image = apps.hello-app.image;
-                ports = [{
-                  containerPort = apps.hello-app.containerPort;
-                }];
+          spec = {
+            containers = [{
+              name = "hello-app";
+              image = "chadrussell/hello-app:latest";
+              ports = [{
+                containerPort = 8080;
               }];
-            };
+            }];
           };
         };
       };
     };
 
     # Hello app service with Tailscale LoadBalancer
-    hello-app-service = {
-      content = {
-        apiVersion = "v1";
-        kind = "Service";
-        metadata = {
-          name = "${apps.hello-app.name}-service";
-          namespace = apps.hello-app.namespace;
-          annotations = {
-            "tailscale.com/hostname" = apps.hello-app.tailscale.hostname;
-          };
+    hello-app-service.content = {
+      apiVersion = "v1";
+      kind = "Service";
+      metadata = {
+        name = "hello-app-service";
+        namespace = "applications";
+        annotations = {
+          "tailscale.com/hostname" = "hello-app-k3s";
         };
-        spec = {
-          selector = {
-            app = apps.hello-app.name;
-          };
-          ports = [{
-            protocol = "TCP";
-            port = apps.hello-app.servicePort;
-            targetPort = apps.hello-app.containerPort;
-          }];
-          type = "LoadBalancer";
-          loadBalancerClass = apps.hello-app.tailscale.loadBalancerClass;
+      };
+      spec = {
+        selector = {
+          app = "hello-app";
         };
+        ports = [{
+          protocol = "TCP";
+          port = 80;
+          targetPort = 8080;
+        }];
+        type = "LoadBalancer";
+        loadBalancerClass = "tailscale";
       };
     };
   };
