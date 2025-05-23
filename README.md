@@ -1,14 +1,14 @@
 # NixOS K3s Cluster
 
-A NixOS-managed Kubernetes (K3s) cluster with declarative configuration and simple Tailscale integration for secure remote access.
+A fully declarative NixOS-managed Kubernetes (K3s) cluster with automatic application deployment and secure Tailscale integration.
 
 ## Features
 
-- 🚀 **Declarative K3s Setup**: Fully managed through NixOS configurations
+- 🚀 **Fully Declarative**: Everything managed through NixOS configurations - no manual kubectl needed
 - 🔐 **Integrated Secrets Management**: Uses sops-nix for encrypted secrets
 - 🌐 **Simple Tailscale Integration**: Secure access via lightweight sidecar containers
-- 🎯 **GitOps Ready**: All configurations are version-controlled and declarative
-- 📦 **Example Applications**: Includes hello-app with Tailscale exposure
+- 🎯 **GitOps Workflow**: `git pull` + `nixos-rebuild switch` = fully deployed cluster
+- 📦 **Auto-deployed Applications**: Kubernetes apps deploy automatically during system rebuild
 
 ## Project Structure
 
@@ -16,19 +16,18 @@ A NixOS-managed Kubernetes (K3s) cluster with declarative configuration and simp
 .
 ├── flake.nix            # Main NixOS flake configuration
 ├── flake.lock           # Lock file for flake dependencies
-├── kubernetes/          # All Kubernetes manifests
-│   ├── apps/            # Application deployments
-│   ├── infrastructure/  # Cluster infrastructure components
-│   │   ├── tailscale/   # Simple Tailscale sidecar integration
-│   │   └── ...
-│   ├── kustomize/       # Kustomize overlays
-│   └── namespaces/      # Namespace definitions
-├── nix/                 # Nix configurations
+├── nix/                 # NixOS configurations
 │   ├── modules/         # NixOS modules
 │   │   ├── common/      # Shared configurations
+│   │   │   ├── k3s-node.nix  # K3s node setup
+│   │   │   └── k3s-apps.nix  # Auto-deployed Kubernetes apps
 │   │   └── hosts/       # Host-specific configurations
-│   ├── profiles/        # Reusable profiles for different node types
-│   └── pkgs/            # Custom packages
+│   └── profiles/        # Reusable profiles for different node types
+├── kubernetes/          # Kubernetes manifests (reference/legacy)
+│   ├── apps/            # Application deployments
+│   ├── infrastructure/  # Infrastructure configurations
+│   │   └── tailscale/   # Tailscale sidecar configs (encrypted)
+│   └── kustomize/       # Legacy kustomize configs
 ├── secrets/             # Encrypted secrets (managed by sops-nix)
 └── docs/                # Documentation
     └── DEPLOY_GUIDE.md  # Deployment instructions
@@ -39,17 +38,31 @@ A NixOS-managed Kubernetes (K3s) cluster with declarative configuration and simp
 ### 1. Deploy the Cluster
 See [Deployment Guide](docs/DEPLOY_GUIDE.md) for detailed instructions on how to deploy the K3s cluster.
 
-### 2. Set Up Tailscale Integration (5 minutes!)
-Follow the instructions in [kubernetes/infrastructure/tailscale/README.md](kubernetes/infrastructure/tailscale/README.md) to:
-- Get a Tailscale auth key
-- Deploy applications with Tailscale sidecar containers
-- Access apps securely through your tailnet
+### 2. Applications Deploy Automatically! 
+After your cluster is running, applications are automatically deployed on every `nixos-rebuild switch`:
+
+```bash
+# Pull latest changes
+git pull
+
+# Rebuild system - apps deploy automatically!
+nixos-rebuild switch --flake .#core1
+```
+
+That's it! No kubectl commands needed.
 
 ### 3. Access Your Applications
-Once configured, you can access the hello-app from any device on your Tailscale network:
+Once deployed, you can access the hello-app from any device on your Tailscale network:
 ```bash
 curl http://hello-app-k3s
 ```
+
+## How It Works
+
+- **Applications** are defined in `nix/modules/common/k3s-apps.nix` as pure Nix code
+- **Secrets** are handled by sops-nix templates, automatically decrypted during rebuild
+- **K3s** automatically applies manifests from `/var/lib/rancher/k3s/server/manifests/`
+- **Everything** happens declaratively during `nixos-rebuild switch`
 
 ## Prerequisites
 
@@ -63,5 +76,5 @@ curl http://hello-app-k3s
 
 - **Zero-Trust Networking**: Applications are only accessible via your private Tailscale network
 - **Encrypted Secrets**: All sensitive data is encrypted with sops-nix before being committed
-- **Simple & Secure**: Lightweight sidecar approach that's easy to understand and debug
-- **Declarative Security**: All security configurations are version-controlled 
+- **Declarative Security**: All security configurations are version-controlled
+- **Automatic Secret Rotation**: Secrets are re-applied on every system rebuild 

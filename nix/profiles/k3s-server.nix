@@ -4,6 +4,7 @@
 {
   imports = [
     ../modules/common/k3s-node.nix
+    ../modules/common/k3s-apps.nix
   ];
 
   # K3s-specific configurations for server nodes
