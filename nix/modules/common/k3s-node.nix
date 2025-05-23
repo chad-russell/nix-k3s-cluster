@@ -41,34 +41,22 @@ in
     clusterInit = lib.mkIf (role == "server" && initialServer) true;
     # Server address is needed for agents and joining servers
     serverAddr = lib.mkIf (role == "agent" || (role == "server" && !initialServer)) k3sServerUrl;
-    # Token file is needed for agents and joining servers
-    tokenFile = lib.mkIf (role == "agent") config.sops.secrets."k3s-agent-node-token".path
-                else if (role == "server" && !initialServer) config.sops.secrets."k3s-server-join-token".path
+    # Token file is needed for agents and joining servers, using a single common token
+    tokenFile = lib.mkIf (role == "agent" || (role == "server" && !initialServer))
+                  config.sops.secrets."k3s-node-token".path
                 else null; # No tokenFile for the initial server
   };
 
-  sops.secrets."k3s-agent-node-token" = lib.mkIf (role == "agent") {
-    sopsFile = "${flakeRoot}/secrets/k3s-agent-node-token";
+  sops.secrets."k3s-node-token" = lib.mkIf (role == "agent" || (role == "server" && !initialServer)) {
+    sopsFile = "${flakeRoot}/secrets/k3s-node-token";
     format = "binary";
-    # This will expect an encrypted file at ./secrets/k3s-agent-node-token
-    # relative to your flake.nix file if you don't specify a `source`.
-    # Or, more explicitly, you can set:
-    # source = ../secrets/k3s-agent-node-token.enc; # Adjust path as needed
-    # sops-nix will decrypt it and place it at a path like /run/secrets/k3s-agent-node-token
+    # This will expect an encrypted file at ./secrets/k3s-node-token
+    # relative to your flake.nix file.
     # Ensure k3s user (typically root or k3s) can read it.
     # Default owner is root, default mode is 0400 if not specified.
     # owner = config.services.k3s.user;
     # group = config.services.k3s.group;
     # mode = "0400"; # Read-only by owner
-  };
-
-  # NEW: sops secret for the server join token
-  sops.secrets."k3s-server-join-token" = lib.mkIf (role == "server" && !initialServer) {
-    sopsFile = "${flakeRoot}/secrets/k3s-server-join-token";
-    format = "binary";
-    # owner = config.services.k3s.user; # Or root
-    # group = config.services.k3s.group; # Or root
-    # mode = "0400";
   };
 
   # Tailscale for networking with k3s subnet routing

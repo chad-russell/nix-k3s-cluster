@@ -6,9 +6,7 @@ keys:
   - &core3_key age1rhfxwge48gwa7nw9ca434slcp2neallqjfwas6vstd2sm674nvwqkj8tw2
   - &core4_key age177ejdf73ajf7grjhd5m8ksalqldlpwg46lfek79nzkaael9k7v5ssfaj2q
 creation_rules:
-  # Specific rule for the k3s agent node token
-  - path_regex: ^secrets/k3s-agent-node-token$
-    pgp: ""
+  - path_regex: ^secrets/k3s-node-token$
     key_groups:
       - age:
           - *admin_key
