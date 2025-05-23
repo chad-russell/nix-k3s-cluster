@@ -1,3 +1,38 @@
+# Tailscale RBAC Resources
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tailscale
+  namespace: applications
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: applications
+  name: tailscale
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tailscale
+  namespace: applications
+subjects:
+  - kind: ServiceAccount
+    name: tailscale
+    namespace: applications
+roleRef:
+  kind: Role
+  name: tailscale
+  apiGroup: rbac.authorization.k8s.io
+---
 # Simple Tailscale Integration - Much Simpler Alternative!
 # This approach uses a Tailscale sidecar container instead of the complex operator
 
@@ -17,7 +52,7 @@ spec:
       labels:
         app: hello-app
     spec:
-      serviceAccountName: default
+      serviceAccountName: tailscale
       containers:
         # Your existing hello-app container
         - name: hello-app
@@ -36,6 +71,16 @@ spec:
                 secretKeyRef:
                   name: tailscale-auth
                   key: TS_AUTHKEY
+            - name: TS_KUBE_SECRET
+              value: tailscale
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
             - name: TS_SERVE_CONFIG
               value: |
                 {
