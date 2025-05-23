@@ -59,7 +59,7 @@
             entryPoints = [ "web" ]; # Default Traefik entrypoint for HTTP
             routes = [
               {
-                match = "Host('hello-world.k3s.crussell.io')"; # Using single quotes
+                match = "Host(`hello-world.k3s.crussell.io`)"; # Using backticks
                 kind = "Rule";
                 services = [
                   {
