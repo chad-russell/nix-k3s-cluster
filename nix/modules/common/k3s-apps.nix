@@ -47,7 +47,7 @@ let
       entryPoints:
         - web # Default Traefik entrypoint for HTTP
       routes:
-        - match: Host(`hello-world.k3s.local`)
+        - match: Host(`hello-world.k3s.crussell.io`)
           kind: Rule
           services:
             - name: hello-world-service
