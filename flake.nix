@@ -12,10 +12,10 @@
   outputs = { self, nixpkgs, flake-utils, disko, sops-nix, ... }:
     let
       nodes = [
-        { name = "core1"; role = "server"; }
-        { name = "core2"; role = "agent"; }
-        { name = "core3"; role = "agent"; }
-        { name = "core4"; role = "agent"; }
+        { name = "core1"; role = "server"; initialServer = true; }
+        { name = "core2"; role = "server"; initialServer = false; }
+        { name = "core3"; role = "server"; initialServer = false; }
+        { name = "core4"; role = "agent";  initialServer = false; }
       ];
 
       # Helper function to generate a NixOS system configuration
@@ -79,7 +79,7 @@
                     sops-nix.nixosModules.sops
                     (if node.role == "server" then ./nix/profiles/k3s-server.nix else ./nix/profiles/k3s-agent.nix)
                   ];
-                  specialArgs = { role = node.role; flakeRoot = ./.; };
+                  specialArgs = { role = node.role; flakeRoot = ./.; initialServer = node.initialServer; };
                 };
               }
             ]

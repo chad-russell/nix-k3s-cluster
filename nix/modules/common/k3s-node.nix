@@ -1,5 +1,5 @@
 # k3s-node.nix: Common configuration for all k3s nodes
-{ config, pkgs, lib, role, flakeRoot, ... }:
+{ config, pkgs, lib, role, flakeRoot, initialServer, ... }:
 
 let
   # Configuration variables - centralized for easy maintenance
@@ -37,8 +37,14 @@ in
   services.k3s = {
     enable = true;
     inherit role;
-    serverAddr = lib.mkIf (role == "agent") k3sServerUrl;
-    tokenFile = lib.mkIf (role == "agent") config.sops.secrets."k3s-agent-node-token".path;
+    # Set clusterInit for the initial server node
+    clusterInit = lib.mkIf (role == "server" && initialServer) true;
+    # Server address is needed for agents and joining servers
+    serverAddr = lib.mkIf (role == "agent" || (role == "server" && !initialServer)) k3sServerUrl;
+    # Token file is needed for agents and joining servers
+    tokenFile = lib.mkIf (role == "agent") config.sops.secrets."k3s-agent-node-token".path
+                else if (role == "server" && !initialServer) config.sops.secrets."k3s-server-join-token".path
+                else null; # No tokenFile for the initial server
   };
 
   sops.secrets."k3s-agent-node-token" = lib.mkIf (role == "agent") {
@@ -54,6 +60,15 @@ in
     # owner = config.services.k3s.user;
     # group = config.services.k3s.group;
     # mode = "0400"; # Read-only by owner
+  };
+
+  # NEW: sops secret for the server join token
+  sops.secrets."k3s-server-join-token" = lib.mkIf (role == "server" && !initialServer) {
+    sopsFile = "${flakeRoot}/secrets/k3s-server-join-token";
+    format = "binary";
+    # owner = config.services.k3s.user; # Or root
+    # group = config.services.k3s.group; # Or root
+    # mode = "0400";
   };
 
   # Tailscale for networking with k3s subnet routing
