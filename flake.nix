@@ -23,7 +23,7 @@
         nixpkgs.lib.nixosSystem {
           inherit system specialArgs;
           modules = extraModules ++ [
-            ./modules/common-base.nix
+            ./nix/modules/common/common-base.nix
             sops-nix.nixosModules.sops
             {
               networking.hostName = hostname;
@@ -39,7 +39,14 @@
         pkgs = import nixpkgs { inherit system; };
       in {
         devShell = pkgs.mkShell {
-          buildInputs = [ pkgs.k3s pkgs.kubectl pkgs.sops pkgs.age ];
+          buildInputs = with pkgs; [ 
+            k3s 
+            kubectl 
+            sops 
+            age 
+            kubernetes-helm
+            kustomize
+          ];
         };
       }
     ) // {
@@ -55,7 +62,7 @@
                   system = "x86_64-linux";
                   extraModules = [
                     disko.nixosModules.disko
-                    (./modules + "/${node.name}/disko.nix")
+                    (./nix/modules/hosts + "/${node.name}/disko.nix")
                   ];
                   specialArgs = { role = node.role; flakeRoot = ./.; };
                 };
@@ -67,10 +74,10 @@
                   system = "x86_64-linux";
                   extraModules = [
                     disko.nixosModules.disko
-                    (./modules + "/${node.name}/disko.nix")
-                    ./modules/common-base.nix
+                    (./nix/modules/hosts + "/${node.name}/disko.nix")
+                    ./nix/modules/common/common-base.nix
                     sops-nix.nixosModules.sops
-                    ./modules/k3s-node.nix
+                    (if node.role == "server" then ./nix/profiles/k3s-server.nix else ./nix/profiles/k3s-agent.nix)
                   ];
                   specialArgs = { role = node.role; flakeRoot = ./.; };
                 };

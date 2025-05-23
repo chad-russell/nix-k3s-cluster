@@ -1,0 +1,33 @@
+# Nix
+result
+result-*
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Secrets (only encrypted versions should be committed)
+# Don't ignore the *.yaml in secrets since those are encrypted
+secrets/*
+!secrets/*.yaml
+!secrets/*.enc
+!secrets/k3s-agent-node-token
+
+# Build outputs
+dist/
+build/ 
