@@ -40,35 +40,24 @@ in
       };
     };
 
-    # Minimal deployment - trying to find what's breaking
-    hello-app = {
+    # Test with a service instead of deployment
+    test-service = {
       content = {
-        apiVersion = "apps/v1";
-        kind = "Deployment";
+        apiVersion = "v1";
+        kind = "Service";
         metadata = {
-          name = "hello-app";
+          name = "test-service";
           namespace = "applications";
         };
         spec = {
-          replicas = 1;
           selector = {
-            matchLabels = {
-              app = "hello-app";
-            };
+            app = "test-app";
           };
-          template = {
-            metadata = {
-              labels = {
-                app = "hello-app";
-              };
-            };
-            spec = {
-              containers = [{
-                name = "hello-app";
-                image = "nginx";
-              }];
-            };
-          };
+          ports = [{
+            protocol = "TCP";
+            port = 80;
+            targetPort = 8080;
+          }];
         };
       };
     };
