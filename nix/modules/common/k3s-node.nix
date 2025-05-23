@@ -1,6 +1,40 @@
 # k3s-node.nix: Common configuration for all k3s nodes
 { config, pkgs, lib, role, flakeRoot, ... }:
 
+let
+  # =============================================================================
+  # Configuration Variables - Edit these to match your environment
+  # =============================================================================
+  
+  # K3s cluster configuration
+  k3sConfig = {
+    # Tailscale DNS name of your k3s server node (replace with your actual hostname and tailnet)
+    # Format: hostname.tailnet-name.ts.net
+    serverHostname = "core1.tailac926.ts.net";
+    apiPort = 6443;
+    
+    # K3s network CIDRs (these are the defaults, but now configurable)
+    podCIDR = "10.42.0.0/16";      # Default k3s pod network
+    serviceCIDR = "10.43.0.0/16";  # Default k3s service network
+  };
+  
+  # Tailscale configuration
+  tailscaleConfig = {
+    # Tailscale network CIDR (standard Tailscale range)
+    networkCIDR = "100.64.0.0/10";
+    interface = "tailscale0";
+    
+    # Subnet routes to advertise (k3s networks)
+    advertiseRoutes = [
+      k3sConfig.podCIDR
+      k3sConfig.serviceCIDR
+    ];
+  };
+  
+  # Computed values
+  k3sServerUrl = "https://${k3sConfig.serverHostname}:${toString k3sConfig.apiPort}";
+  
+in
 {
   imports = [ ];
 
@@ -11,7 +45,7 @@
   services.k3s = {
     enable = true;
     inherit role;
-    serverAddr = lib.mkIf (role == "agent") "https://100.103.44.81:6443"; # core1 Tailscale static IP
+    serverAddr = lib.mkIf (role == "agent") k3sServerUrl;
     tokenFile = lib.mkIf (role == "agent") config.sops.secrets."k3s-agent-node-token".path;
   };
 
@@ -35,9 +69,9 @@
     enable = true;
     # Declaratively configure Tailscale to advertise k3s subnets
     extraUpFlags = [
-      "--advertise-routes=10.42.0.0/16,10.43.0.0/16"  # k3s pod and service CIDRs
-      "--accept-routes"                                # Accept routes from other nodes
-      "--ssh"                                          # Enable SSH access (matches current config)
+      "--advertise-routes=${lib.concatStringsSep "," tailscaleConfig.advertiseRoutes}"
+      "--accept-routes"  # Accept routes from other nodes
+      "--ssh"            # Enable SSH access
     ];
     # Enable IP forwarding for subnet routing
     useRoutingFeatures = "server";
@@ -52,29 +86,29 @@
   # Firewall configuration for Tailscale and k3s
   networking.firewall = {
     # Allow traffic on the Tailscale interface
-    trustedInterfaces = [ "tailscale0" ];
+    trustedInterfaces = [ tailscaleConfig.interface ];
     
     # Allow k3s API server traffic (for agents connecting to server)
-    allowedTCPPorts = [ 6443 ];
+    allowedTCPPorts = [ k3sConfig.apiPort ];
     
     # Additional firewall rules for k3s cluster communication
     extraCommands = ''
-      # Allow traffic from Tailscale network (100.64.0.0/10) to k3s subnets
-      iptables -A nixos-fw -s 100.64.0.0/10 -d 10.42.0.0/16 -j ACCEPT
-      iptables -A nixos-fw -s 100.64.0.0/10 -d 10.43.0.0/16 -j ACCEPT
+      # Allow traffic from Tailscale network to k3s subnets
+      iptables -A nixos-fw -s ${tailscaleConfig.networkCIDR} -d ${k3sConfig.podCIDR} -j ACCEPT
+      iptables -A nixos-fw -s ${tailscaleConfig.networkCIDR} -d ${k3sConfig.serviceCIDR} -j ACCEPT
       
       # Allow traffic between k3s subnets (for internal cluster communication)
-      iptables -A nixos-fw -s 10.42.0.0/16 -d 10.43.0.0/16 -j ACCEPT
-      iptables -A nixos-fw -s 10.43.0.0/16 -d 10.42.0.0/16 -j ACCEPT
+      iptables -A nixos-fw -s ${k3sConfig.podCIDR} -d ${k3sConfig.serviceCIDR} -j ACCEPT
+      iptables -A nixos-fw -s ${k3sConfig.serviceCIDR} -d ${k3sConfig.podCIDR} -j ACCEPT
     '';
     
     # Cleanup rules when firewall is reloaded
     extraStopCommands = ''
       # Remove our custom rules
-      iptables -D nixos-fw -s 100.64.0.0/10 -d 10.42.0.0/16 -j ACCEPT 2>/dev/null || true
-      iptables -D nixos-fw -s 100.64.0.0/10 -d 10.43.0.0/16 -j ACCEPT 2>/dev/null || true
-      iptables -D nixos-fw -s 10.42.0.0/16 -d 10.43.0.0/16 -j ACCEPT 2>/dev/null || true
-      iptables -D nixos-fw -s 10.43.0.0/16 -d 10.42.0.0/16 -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${tailscaleConfig.networkCIDR} -d ${k3sConfig.podCIDR} -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${tailscaleConfig.networkCIDR} -d ${k3sConfig.serviceCIDR} -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${k3sConfig.podCIDR} -d ${k3sConfig.serviceCIDR} -j ACCEPT 2>/dev/null || true
+      iptables -D nixos-fw -s ${k3sConfig.serviceCIDR} -d ${k3sConfig.podCIDR} -j ACCEPT 2>/dev/null || true
     '';
   };
 

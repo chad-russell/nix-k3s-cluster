@@ -4,6 +4,24 @@
 let
   # Only deploy apps on the server node
   isServer = role == "server";
+  
+  # =============================================================================
+  # Application Configuration Variables
+  # =============================================================================
+  appConfig = {
+    # Hello App Configuration
+    helloApp = {
+      image = "chadrussell/hello-app:latest";  # Your custom image
+      replicas = 2;
+      containerPort = 8080;
+      servicePort = 80;
+      # Tailscale LoadBalancer configuration
+      tailscaleHostname = "hello-app-k3s";
+    };
+    
+    # Default namespace for applications
+    namespace = "applications";
+  };
 in
 {
   # Configure sops for any application secrets that might be needed
@@ -16,30 +34,31 @@ in
       content = {
         apiVersion = "v1";
         kind = "Namespace";
-        metadata.name = "applications";
+        metadata.name = appConfig.namespace;
       };
     };
 
-    # Example hello-app (using host Tailscale connectivity)
+    # Hello-app deployment (using your custom image)
     hello-app = {
       content = {
         apiVersion = "apps/v1";
         kind = "Deployment";
         metadata = {
           name = "hello-app";
-          namespace = "applications";
+          namespace = appConfig.namespace;
+          labels.app = "hello-app";
         };
         spec = {
-          replicas = 2;
+          replicas = appConfig.helloApp.replicas;
           selector.matchLabels.app = "hello-app";
           template = {
             metadata.labels.app = "hello-app";
             spec = {
               containers = [{
                 name = "hello-app";
-                image = "gcr.io/google-samples/hello-app:1.0";
-                ports = [{ containerPort = 8080; }];
-                env = [{ name = "PORT"; value = "8080"; }];
+                image = appConfig.helloApp.image;
+                ports = [{ containerPort = appConfig.helloApp.containerPort; }];
+                env = [{ name = "PORT"; value = toString appConfig.helloApp.containerPort; }];
               }];
             };
           };
@@ -47,23 +66,28 @@ in
       };
     };
 
-    # Hello app service
+    # Hello app service with Tailscale LoadBalancer
     hello-app-service = {
       content = {
         apiVersion = "v1";
         kind = "Service";
         metadata = {
           name = "hello-app-service";
-          namespace = "applications";
+          namespace = appConfig.namespace;
+          annotations = {
+            # Tailscale specific annotations for external access
+            "tailscale.com/hostname" = appConfig.helloApp.tailscaleHostname;
+          };
         };
         spec = {
           selector.app = "hello-app";
           ports = [{
             protocol = "TCP";
-            port = 80;
-            targetPort = 8080;
+            port = appConfig.helloApp.servicePort;
+            targetPort = appConfig.helloApp.containerPort;
           }];
-          type = "ClusterIP";
+          type = "LoadBalancer";
+          loadBalancerClass = "tailscale";
         };
       };
     };
