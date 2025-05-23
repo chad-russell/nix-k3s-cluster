@@ -135,35 +135,17 @@ in
                       };
                     }
                     {
-                      name = "TS_KUBE_SECRET";
-                      value = "tailscale";
+                      name = "TS_HOSTNAME";
+                      value = "hello-app-k3s";
                     }
                     {
-                      name = "POD_NAME";
-                      valueFrom.fieldRef.fieldPath = "metadata.name";
+                      name = "TS_STATE_DIR";
+                      value = "/var/lib/tailscale";
                     }
                     {
-                      name = "POD_UID";
-                      valueFrom.fieldRef.fieldPath = "metadata.uid";
+                      name = "TS_USERSPACE";
+                      value = "false";
                     }
-                    {
-                      name = "TS_SERVE_CONFIG";
-                      value = builtins.toJSON {
-                        TCP = {
-                          "443" = { HTTPS = true; };
-                          "80" = { HTTP = true; };
-                        };
-                        Web = {
-                          "hello-app-k3s:443" = {
-                            Handlers = {
-                              "/" = { Proxy = "http://127.0.0.1:8080"; };
-                            };
-                          };
-                        };
-                      };
-                    }
-                    { name = "TS_HOSTNAME"; value = "hello-app-k3s"; }
-                    { name = "TS_STATE_DIR"; value = "/var/lib/tailscale"; }
                   ];
                   securityContext.capabilities.add = [ "NET_ADMIN" ];
                   volumeMounts = [{
