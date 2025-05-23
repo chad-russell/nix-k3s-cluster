@@ -1,22 +1,39 @@
 # NixOS-Managed Tailscale Integration
 
-This directory contains a NixOS-managed Tailscale integration for your k3s cluster using SOPS for secret management. The setup provides automatic deployment of applications with Tailscale sidecars through your NixOS configuration.
+This directory contains a NixOS-managed Tailscale integration for your k3s cluster using SOPS for secret management. 
+
+## 🎯 **RECOMMENDED: DaemonSet Approach**
+
+**Use `daemonset.yaml` for cluster-wide Tailscale connectivity** - this is the recommended approach for most use cases where you want all cluster resources accessible via Tailscale.
+
+### Why DaemonSet > Sidecar?
+
+- ✅ **Resource Efficient**: 1 Tailscale per node vs 1 per pod
+- ✅ **Operationally Simple**: Single auth key, easier troubleshooting  
+- ✅ **Scalable**: Adding pods doesn't increase Tailscale overhead
+- ✅ **Standard Practice**: How networking solutions typically work in K8s
+- ✅ **Cluster-wide Access**: All pods/services accessible through subnet routes
 
 ## 🏗️ Architecture Overview
+
+**DaemonSet Architecture:**
+```
+Tailnet ←→ [DaemonSet Tailscale] ←→ [Host Network] ←→ [Pod/Service Networks]
+                    ↓
+            Advertises cluster subnets:
+            - Pod CIDR (10.42.0.0/16)  
+            - Service CIDR (10.43.0.0/16)
+```
 
 This integration uses a **dual-secret architecture**:
 
 - **`nixos-secrets.yaml`** - Raw SOPS file consumed by NixOS sops-nix for secret management
 - **`secret.yaml`** - Kubernetes Secret manifest deployed to the cluster  
-- **`sidecar.yaml`** - Clean application manifests (Deployment + Service) that reference the secrets
+- **`daemonset.yaml`** - DaemonSet providing cluster-wide Tailscale connectivity
 
-Everything is orchestrated through your `nix/modules/common/k3s-apps.nix` configuration, providing:
-- ✅ Automated secret deployment and rotation
-- ✅ Zero-touch application deployment via `nixos-rebuild`
-- ✅ Proper SOPS encryption with age keys
-- ✅ Clean separation of concerns
+Everything is orchestrated through your `nix/modules/common/k3s-apps.nix` configuration.
 
-## 🚀 Quick Start
+## 🚀 Quick Start (DaemonSet)
 
 ### 1. Get a Tailscale Auth Key
 
@@ -24,195 +41,215 @@ Everything is orchestrated through your `nix/modules/common/k3s-apps.nix` config
 2. Click **Generate auth key**
 3. Settings:
    - **Reusable**: Yes
-   - **Ephemeral**: Yes 
+   - **Ephemeral**: No (for persistent nodes)
    - **Tags**: `tag:k8s`
 4. Copy the key (starts with `tskey-auth-`)
 
-### 2. Update Both Secret Files
+### 2. Update Secret Files
 
 **Update NixOS secrets (for sops-nix):**
 ```bash
-# Decrypt, edit, and re-encrypt
 sops kubernetes/infrastructure/tailscale/nixos-secrets.yaml
-
 # Update the TS_AUTHKEY value with your new key
-# Save and exit - SOPS will re-encrypt automatically
 ```
 
 **Update Kubernetes secrets:**
 ```bash
-# Decrypt, edit, and re-encrypt  
 sops kubernetes/infrastructure/tailscale/secret.yaml
-
 # Update the TS_AUTHKEY value in stringData section
-# Save and exit - SOPS will re-encrypt automatically
 ```
 
-### 3. Deploy via NixOS
+### 3. Deploy DaemonSet
 
 ```bash
-# Deploy to your cluster nodes (example for core1)
-nixos-rebuild switch --flake .#core1
-
-# Or deploy to all nodes
-nix run .#deploy
+cd kubernetes/infrastructure/tailscale/
+chmod +x deploy-daemonset.sh
+./deploy-daemonset.sh
 ```
 
-### 4. Verify Deployment
+### 4. Enable Subnet Routes (Important!)
+
+1. Go to https://login.tailscale.com/admin/machines
+2. Find your k3s nodes (named like `k3s-core1`, `k3s-worker1`)
+3. Click on each node → **Edit route settings**
+4. **Enable the advertised routes**:
+   - `10.42.0.0/16` (pods)
+   - `10.43.0.0/16` (services)
+
+### 5. Test Connectivity
 
 ```bash
-# Check if secrets are properly installed
-sudo ls -la /run/secrets/
+# From your tailnet, test node connectivity
+ping k3s-core1
 
-# Check if pods are running
-kubectl get pods -n applications -l app=hello-app
+# Test pod connectivity (get a pod IP first)
+kubectl get pods -o wide
+ping <pod-ip>
 
-# Check pod logs
-kubectl logs -n applications -l app=hello-app -c tailscale
-
-# Test connectivity from your tailnet
-curl http://hello-app-k3s
+# Test service connectivity  
+kubectl get svc
+# Access services via their cluster IPs or create ingress
 ```
 
 ## 📁 File Breakdown
 
-### `nixos-secrets.yaml`
-Raw SOPS-encrypted file for NixOS consumption:
+### `daemonset.yaml` ⭐ **RECOMMENDED**
+Complete DaemonSet setup with:
+- **RBAC**: Proper permissions for Tailscale
+- **Persistent State**: Survives pod restarts
+- **Subnet Advertisement**: Exposes pod/service networks
+- **Resource Limits**: Efficient resource usage
+- **Host Networking**: Direct access to node network
+
+### `sidecar.yaml` (Legacy)
+Individual pod sidecars - **NOT RECOMMENDED** for cluster-wide access:
+- High resource overhead
+- Complex configuration per pod
+- Difficult to troubleshoot
+- Doesn't scale well
+
+### `nixos-secrets.yaml` & `secret.yaml`
+Secret management (same as before):
 ```yaml
 TS_AUTHKEY: ENC[AES256_GCM,data:...] 
-sops:
-  age: [...]
 ```
-- Used by sops-nix to create `/run/secrets/TS_AUTHKEY`
-- Consumed by `k3s-apps.nix` for secret template generation
-
-### `secret.yaml` 
-Kubernetes Secret manifest:
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: tailscale-auth
-  namespace: applications
-stringData:
-  TS_AUTHKEY: ENC[AES256_GCM,data:...]
-```
-- Deployed as a Kubernetes secret via `k3s-apps.nix`
-- Referenced by pods via `secretKeyRef`
-
-### `sidecar.yaml`
-Clean application manifests:
-- **Deployment**: hello-app with Tailscale sidecar container
-- **Service**: ClusterIP service for internal communication
-- **No hardcoded secrets** - uses `secretKeyRef` to reference Kubernetes secrets
 
 ## 🔧 Configuration Details
 
-### Tailscale Sidecar Configuration
+### DaemonSet Key Features
 
-The sidecar container uses these key environment variables:
+**Subnet Advertisement:**
+```bash
+--advertise-routes="${POD_CIDR},${SERVICE_CIDR}"
+```
+Makes all cluster resources accessible from your tailnet.
 
+**Persistent State:**
 ```yaml
-env:
-  - name: TS_AUTHKEY
-    valueFrom:
-      secretKeyRef:
-        name: tailscale-auth
-        key: TS_AUTHKEY
-  - name: TS_HOSTNAME
-    value: hello-app-k3s
-  - name: TS_SERVE_CONFIG
-    value: |
-      {
-        "TCP": { "443": {"HTTPS": true}, "80": {"HTTP": true} },
-        "Web": {
-          "hello-app-k3s:443": {
-            "Handlers": {"/": {"Proxy": "http://127.0.0.1:8080"}}
-          }
-        }
-      }
+volumes:
+  - name: tailscale-state
+    hostPath:
+      path: /var/lib/tailscale
+```
+Prevents re-registration on pod restart.
+
+**Node Hostnames:**
+Each node gets a unique hostname: `k3s-${NODE_NAME}`
+
+### Accessing Individual Services
+
+**Option 1: Direct IP Access**
+```bash
+# Get service cluster IP
+kubectl get svc hello-app-service
+# Access directly: http://10.43.xxx.xxx
 ```
 
-### SOPS Configuration
-
-Your `.sops.yaml` handles encryption rules:
+**Option 2: Create Ingress**
 ```yaml
-creation_rules:
-  - path_regex: kubernetes/infrastructure/tailscale/nixos-secrets\.yaml$
-    age: >-
-      age12lhj5rwp25uxpp5dkaa6z998m7mmwcg7dequc46a68x46zdza4sqa7uezf,
-      age1262ecjgugtm72dcdzxzk5gdeays4rxnedqrv280lvkfpwz5q5pnqdgc3ar,
-      [... other age keys ...]
-  - path_regex: kubernetes/infrastructure/tailscale/secret\.yaml$
-    age: [same keys]
-    encrypted_regex: ^(data|stringData)$
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-app-ingress
+spec:
+  rules:
+    - host: hello-app.k3s.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hello-app-service
+                port:
+                  number: 80
 ```
+
+**Option 3: Tailscale Serve (Advanced)**
+Run Tailscale serve on the node to expose specific services with custom hostnames.
 
 ## 🔄 Updating Auth Keys
 
-When you need to rotate Tailscale auth keys:
+```bash
+# Update both secret files
+sops kubernetes/infrastructure/tailscale/nixos-secrets.yaml
+sops kubernetes/infrastructure/tailscale/secret.yaml
 
-1. **Generate new key** from Tailscale admin console
-2. **Update both secret files** using `sops` command 
-3. **Deploy changes** via `nixos-rebuild switch --flake .#core1`
-4. **Verify deployment** - pods will automatically restart with new secrets
+# Redeploy
+./deploy-daemonset.sh
+
+# Or just restart the DaemonSet
+kubectl rollout restart daemonset/tailscale -n kube-system
+```
 
 ## 🐛 Troubleshooting
 
-### Check Secret Deployment
+### Check DaemonSet Status
 ```bash
-# Verify NixOS secrets are available
-sudo cat /run/secrets/TS_AUTHKEY
-
-# Verify Kubernetes secrets exist
-kubectl get secret tailscale-auth -n applications -o yaml
+kubectl get pods -n kube-system -l app=tailscale
+kubectl logs -n kube-system -l app=tailscale
 ```
 
-### Check Pod Status
+### Verify Subnet Routes
 ```bash
-# Check pod events
-kubectl describe pod -n applications -l app=hello-app
+# From a DaemonSet pod
+kubectl exec -n kube-system -l app=tailscale -- tailscale status
+kubectl exec -n kube-system -l app=tailscale -- ip route
+```
 
-# Check tailscale container logs
-kubectl logs -n applications -l app=hello-app -c tailscale
+### Test Connectivity
+```bash
+# From your local machine (on tailnet)
+ping k3s-core1
+ping 10.42.0.1  # Pod network
+ping 10.43.0.1  # Service network
 
-# Check hello-app container logs  
-kubectl logs -n applications -l app=hello-app -c hello-app
+# From inside cluster
+kubectl run test-pod --image=nicolaka/netshoot -it --rm -- bash
+# ping 100.x.x.x  # Your tailnet IP
 ```
 
 ### Common Issues
 
-**SOPS MAC mismatch errors:**
-- Don't manually copy/paste encrypted values between files
-- Always use `sops -e -i filename.yaml` to encrypt
-- Ensure `.sops.yaml` rules match your file paths
+**Nodes not appearing in tailnet:**
+- Check auth key validity
+- Check pod logs for authentication errors
+- Verify secret is properly deployed
 
-**Pod CrashLoopBackOff:**
-- Check if auth key is valid and not expired
-- Verify secret exists: `kubectl get secret tailscale-auth -n applications`
-- Check container capabilities: Tailscale needs `NET_ADMIN`
+**Can't reach pods/services from tailnet:**
+- Enable subnet routes in Tailscale admin console
+- Check CIDR ranges match your cluster
+- Verify firewall rules on nodes
 
-**Can't reach service from tailnet:**
-- Verify hostname in Tailscale admin console
-- Check if `TS_SERVE_CONFIG` is correct
-- Test internal connectivity: `kubectl exec -it <pod> -- curl localhost:8080`
+**DaemonSet pods crashing:**
+- Check if privileged security context is allowed
+- Verify host networking permissions
+- Check node resource constraints
 
 ## 🏷️ Integration with NixOS
 
-This setup integrates with your broader NixOS configuration through:
+Update your `nix/modules/common/k3s-apps.nix` to deploy the DaemonSet instead of individual sidecars:
 
-- **`nix/modules/common/k3s-apps.nix`** - Orchestrates secret management and deployment
-- **SOPS age keys** - Shared across your entire cluster for consistent encryption
-- **Automatic deployment** - Changes deploy when you rebuild any cluster node
-- **Centralized management** - All infrastructure as code in your flake
+```nix
+{
+  # Deploy tailscale secrets and DaemonSet
+  services.k3s.manifests = {
+    tailscale-secret = pkgs.writeText "tailscale-secret.yaml" 
+      (builtins.readFile ./kubernetes/infrastructure/tailscale/secret.yaml);
+    tailscale-daemonset = pkgs.writeText "tailscale-daemonset.yaml"
+      (builtins.readFile ./kubernetes/infrastructure/tailscale/daemonset.yaml);
+  };
+}
+```
 
 ## 🔐 Security Notes
 
-- Auth keys are encrypted at rest using SOPS with age encryption
-- Keys are only decrypted in memory during deployment
-- Ephemeral keys provide automatic cleanup when pods are destroyed
-- No secrets stored in git history (only encrypted values)
+- DaemonSet requires privileged access for network configuration
+- Host networking provides direct node access  
+- Subnet routes expose internal cluster networks
+- Use proper Tailscale ACLs to control access
+- Consider using tags for fine-grained permissions
 
 ---
 
-**Next Steps:** To add Tailscale to additional applications, copy the sidecar pattern from `sidecar.yaml` and update the `TS_HOSTNAME` and service configuration accordingly. 
+**Migration from Sidecar:** Simply deploy the DaemonSet and remove sidecar configurations. The DaemonSet provides superior cluster-wide connectivity with much better resource efficiency. 
