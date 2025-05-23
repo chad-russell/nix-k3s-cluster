@@ -4,82 +4,108 @@
 let
   # Only deploy apps on the server node
   isServer = role == "server";
-in
-{
-  # Configure sops for any application secrets that might be needed
-  # (Note: Tailscale auth key no longer needed since using host Tailscale)
 
-  # Auto-deploy Kubernetes manifests using the built-in K3s feature
-  services.k3s.manifests = lib.mkIf isServer {
-    # Create applications namespace
-    applications-namespace.content = {
-      apiVersion = "v1";
-      kind = "Namespace";
-      metadata = {
-        name = "applications";
-      };
-    };
-
-    # Hello app deployment
-    hello-app-deployment.content = {
-      apiVersion = "apps/v1";
-      kind = "Deployment";
-      metadata = {
-        name = "hello-app";
-        namespace = "applications";
-        labels = {
-          app = "hello-app";
-        };
-      };
-      spec = {
-        replicas = 2;
-        selector = {
-          matchLabels = {
-            app = "hello-app";
-          };
-        };
-        template = {
-          metadata = {
-            labels = {
-              app = "hello-app";
-            };
-          };
-          spec = {
-            containers = [{
-              name = "hello-app";
-              image = "chadrussell/hello-app:latest";
-              ports = [{
-                containerPort = 8080;
-              }];
-            }];
-          };
-        };
-      };
-    };
-
-    # Hello app service with Tailscale LoadBalancer
-    hello-app-service.content = {
-      apiVersion = "v1";
-      kind = "Service";
-      metadata = {
-        name = "hello-app-service";
-        namespace = "applications";
-        annotations = {
-          "tailscale.com/hostname" = "hello-app-k3s";
-        };
-      };
-      spec = {
-        selector = {
-          app = "hello-app";
-        };
-        ports = [{
-          protocol = "TCP";
-          port = 80;
-          targetPort = 8080;
-        }];
-        type = "LoadBalancer";
+  # Application configuration variables - centralized for easy maintenance
+  apps = {
+    hello-app = {
+      name = "hello-app";
+      namespace = "applications";
+      image = "chadrussell/hello-app:latest";
+      replicas = 2;
+      containerPort = 8080;
+      servicePort = 80;
+      tailscale = {
+        hostname = "hello-app-k3s";
         loadBalancerClass = "tailscale";
       };
+    };
+  };
+
+  # Generate YAML manifests as strings
+  namespaceYaml = ''
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: ${apps.hello-app.namespace}
+  '';
+
+  deploymentYaml = ''
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: ${apps.hello-app.name}
+      namespace: ${apps.hello-app.namespace}
+      labels:
+        app: ${apps.hello-app.name}
+    spec:
+      replicas: ${toString apps.hello-app.replicas}
+      selector:
+        matchLabels:
+          app: ${apps.hello-app.name}
+      template:
+        metadata:
+          labels:
+            app: ${apps.hello-app.name}
+        spec:
+          containers:
+          - name: ${apps.hello-app.name}
+            image: ${apps.hello-app.image}
+            ports:
+            - containerPort: ${toString apps.hello-app.containerPort}
+  '';
+
+  serviceYaml = ''
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: ${apps.hello-app.name}-service
+      namespace: ${apps.hello-app.namespace}
+      annotations:
+        tailscale.com/hostname: ${apps.hello-app.tailscale.hostname}
+    spec:
+      selector:
+        app: ${apps.hello-app.name}
+      ports:
+      - protocol: TCP
+        port: ${toString apps.hello-app.servicePort}
+        targetPort: ${toString apps.hello-app.containerPort}
+      type: LoadBalancer
+      loadBalancerClass: ${apps.hello-app.tailscale.loadBalancerClass}
+  '';
+
+  # Create deployment script
+  deployScript = pkgs.writeShellScript "deploy-k8s-apps" ''
+    set -euo pipefail
+    
+    # Wait for k3s to be ready
+    echo "Waiting for k3s to be ready..."
+    until ${pkgs.k3s}/bin/k3s kubectl get nodes >/dev/null 2>&1; do
+      echo "Waiting for k3s to start..."
+      sleep 5
+    done
+    
+    echo "Deploying applications namespace..."
+    echo '${namespaceYaml}' | ${pkgs.k3s}/bin/k3s kubectl apply -f -
+    
+    echo "Deploying hello-app..."
+    echo '${deploymentYaml}' | ${pkgs.k3s}/bin/k3s kubectl apply -f -
+    echo '${serviceYaml}' | ${pkgs.k3s}/bin/k3s kubectl apply -f -
+    
+    echo "Applications deployed successfully!"
+  '';
+in
+{
+  # Deploy apps using a systemd service instead of k3s manifests
+  systemd.services.k3s-deploy-apps = lib.mkIf isServer {
+    description = "Deploy K3s Applications";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "k3s.service" ];
+    requires = [ "k3s.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = deployScript;
+      User = "root";
     };
   };
 } 
