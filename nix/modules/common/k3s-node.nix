@@ -42,8 +42,8 @@ in
     # Server address is needed for agents and joining servers
     serverAddr = lib.mkIf (role == "agent" || (role == "server" && !initialServer)) k3sServerUrl;
     # Token file is needed for agents and joining servers, using a single common token
-    tokenFile = lib.mkIf (role == "agent" || (role == "server" && !initialServer))
-                  config.sops.secrets."k3s-node-token".path
+    tokenFile = if (role == "agent" || (role == "server" && !initialServer))
+                then config.sops.secrets."k3s-node-token".path
                 else null; # No tokenFile for the initial server
   };
 
