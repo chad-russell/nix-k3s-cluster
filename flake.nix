@@ -38,7 +38,7 @@
       let
         pkgs = import nixpkgs { inherit system; };
       in {
-        devShell = pkgs.mkShell {
+        devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [ 
             k3s 
             kubectl 
