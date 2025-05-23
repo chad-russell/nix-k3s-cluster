@@ -8,7 +8,7 @@ in
 {
   # Configure sops for the Tailscale auth key
   sops.secrets."tailscale-auth-key" = lib.mkIf isServer {
-    sopsFile = "${flakeRoot}/kubernetes/infrastructure/tailscale/secret.yaml";
+    sopsFile = "${flakeRoot}/kubernetes/infrastructure/tailscale/nixos-secrets.yaml";
     key = "TS_AUTHKEY";
   };
 

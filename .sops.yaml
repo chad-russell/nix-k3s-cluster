@@ -18,6 +18,17 @@ creation_rules:
           - *core3_key
           - *core4_key
 
+  # Encrypt the nixos-specific tailscale secrets file
+  - path_regex: kubernetes/infrastructure/tailscale/nixos-secrets\.yaml$
+    pgp: ""
+    key_groups:
+      - age:
+          - *admin_key
+          - *core1_key
+          - *core2_key
+          - *core3_key
+          - *core4_key
+
   # Specific rule for the k3s agent node token
   - path_regex: ^secrets/k3s-agent-node-token$
     pgp: ""
