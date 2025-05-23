@@ -15,6 +15,18 @@ creation_rules:
           - *admin_key
         # Add more keys/groups as needed, e.g. a group for all hosts
 
+  # Encrypt Kubernetes files that contain secrets (like Tailscale auth keys)
+  - path_regex: kubernetes/infrastructure/tailscale/.*\.yaml$
+    encrypted_regex: ^(data|stringData)$
+    pgp: ""
+    key_groups:
+      - age:
+          - *admin_key
+          - *core1_key
+          - *core2_key
+          - *core3_key
+          - *core4_key
+
   # Specific rule for the k3s agent node token
   - path_regex: ^secrets/k3s-agent-node-token$
     pgp: ""

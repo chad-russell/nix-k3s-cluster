@@ -4,8 +4,4 @@ kind: Kustomization
 # Reference to the resources
 resources:
   - ../../namespaces/namespaces.yaml
-  - ../../apps/hello-app/deployment.yaml
-  - ../../apps/hello-app/service.yaml
-  - ../../infrastructure/tailscale/tailscale-operator.yaml
-  - ../../infrastructure/tailscale/tailscale-auth.yaml
-  - ../../infrastructure/tailscale/tailscale-service.yaml
+  - ../../infrastructure/tailscale/sidecar.yaml
