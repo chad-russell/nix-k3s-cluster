@@ -34,7 +34,9 @@ in
       content = {
         apiVersion = "v1";
         kind = "Namespace";
-        metadata.name = appConfig.namespace;
+        metadata = {
+          name = appConfig.namespace;
+        };
       };
     };
 
@@ -46,19 +48,34 @@ in
         metadata = {
           name = "hello-app";
           namespace = appConfig.namespace;
-          labels.app = "hello-app";
+          labels = {
+            app = "hello-app";
+          };
         };
         spec = {
           replicas = appConfig.helloApp.replicas;
-          selector.matchLabels.app = "hello-app";
+          selector = {
+            matchLabels = {
+              app = "hello-app";
+            };
+          };
           template = {
-            metadata.labels.app = "hello-app";
+            metadata = {
+              labels = {
+                app = "hello-app";
+              };
+            };
             spec = {
               containers = [{
                 name = "hello-app";
                 image = appConfig.helloApp.image;
-                ports = [{ containerPort = appConfig.helloApp.containerPort; }];
-                env = [{ name = "PORT"; value = toString appConfig.helloApp.containerPort; }];
+                ports = [{ 
+                  containerPort = appConfig.helloApp.containerPort; 
+                }];
+                env = [{ 
+                  name = "PORT"; 
+                  value = toString appConfig.helloApp.containerPort; 
+                }];
               }];
             };
           };
@@ -75,12 +92,13 @@ in
           name = "hello-app-service";
           namespace = appConfig.namespace;
           annotations = {
-            # Tailscale specific annotations for external access
             "tailscale.com/hostname" = appConfig.helloApp.tailscaleHostname;
           };
         };
         spec = {
-          selector.app = "hello-app";
+          selector = {
+            app = "hello-app";
+          };
           ports = [{
             protocol = "TCP";
             port = appConfig.helloApp.servicePort;
@@ -92,4 +110,4 @@ in
       };
     };
   };
-} 
+}
