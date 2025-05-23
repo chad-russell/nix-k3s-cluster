@@ -9,12 +9,14 @@
   # K3s-specific configurations for server nodes
   services.k3s = {
     role = "server";
-    extraFlags = toString [
-      # Server-specific flags can be added here
+    extraFlags = lib.mkForce (toString [
+      # Server-specific flags
       "--disable-cloud-controller"
-      "--disable=traefik"  # Use your own ingress controller
-      "--flannel-backend=host-gw"  # Better performance than vxlan
-    ];
+      "--disable=traefik"
+      "--disable=servicelb"
+      "--disable=local-storage"
+      "--flannel-backend=host-gw"
+    ]);
   };
 
   # Networking settings

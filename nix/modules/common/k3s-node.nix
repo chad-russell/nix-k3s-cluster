@@ -11,11 +11,6 @@
   services.k3s = {
     enable = true;
     inherit role;
-    extraFlags = lib.mkIf (role == "server") [
-      "--disable traefik"
-      "--disable servicelb"
-      "--disable local-storage"
-    ];
     serverAddr = lib.mkIf (role == "agent") "https://100.103.44.81:6443"; # core1 Tailscale static IP
     tokenFile = lib.mkIf (role == "agent") config.sops.secrets."k3s-agent-node-token".path;
   };
