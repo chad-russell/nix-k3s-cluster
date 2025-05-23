@@ -12,6 +12,15 @@ in
     key = "TS_AUTHKEY";
   };
 
+  # Explicitly remove the old broken template
+  sops.templates."tailscale-secret" = lib.mkIf isServer {
+    content = "";
+    path = lib.mkForce "/dev/null";
+    mode = "0000";
+    owner = "root";
+    group = "root";
+  };
+
   # Create the secret manifest using sops templates for kube-system namespace
   sops.templates."tailscale-secret-kube-system" = lib.mkIf isServer {
     content = builtins.toJSON {
