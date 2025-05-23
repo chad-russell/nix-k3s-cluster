@@ -29,83 +29,13 @@ in
 
   # Auto-deploy Kubernetes manifests using the built-in K3s feature
   services.k3s.manifests = lib.mkIf isServer {
-    # Namespaces
+    # Just the namespace for now - to test if basic functionality works
     namespaces = {
       content = {
         apiVersion = "v1";
         kind = "Namespace";
         metadata = {
-          name = appConfig.namespace;
-        };
-      };
-    };
-
-    # Hello-app deployment (using your custom image)
-    hello-app = {
-      content = {
-        apiVersion = "apps/v1";
-        kind = "Deployment";
-        metadata = {
-          name = "hello-app";
-          namespace = appConfig.namespace;
-          labels = {
-            app = "hello-app";
-          };
-        };
-        spec = {
-          replicas = appConfig.helloApp.replicas;
-          selector = {
-            matchLabels = {
-              app = "hello-app";
-            };
-          };
-          template = {
-            metadata = {
-              labels = {
-                app = "hello-app";
-              };
-            };
-            spec = {
-              containers = [{
-                name = "hello-app";
-                image = appConfig.helloApp.image;
-                ports = [{ 
-                  containerPort = appConfig.helloApp.containerPort; 
-                }];
-                env = [{ 
-                  name = "PORT"; 
-                  value = toString appConfig.helloApp.containerPort; 
-                }];
-              }];
-            };
-          };
-        };
-      };
-    };
-
-    # Hello app service with Tailscale LoadBalancer
-    hello-app-service = {
-      content = {
-        apiVersion = "v1";
-        kind = "Service";
-        metadata = {
-          name = "hello-app-service";
-          namespace = appConfig.namespace;
-          annotations = {
-            "tailscale.com/hostname" = appConfig.helloApp.tailscaleHostname;
-          };
-        };
-        spec = {
-          selector = {
-            app = "hello-app";
-          };
-          ports = [{
-            protocol = "TCP";
-            port = appConfig.helloApp.servicePort;
-            targetPort = appConfig.helloApp.containerPort;
-          }];
-          type = "LoadBalancer";
-          loadBalancerClass = "tailscale";
+          name = "applications";
         };
       };
     };
