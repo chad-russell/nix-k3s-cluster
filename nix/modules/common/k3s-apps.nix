@@ -146,6 +146,27 @@ in
                       name = "TS_USERSPACE";
                       value = "false";
                     }
+                    {
+                      name = "TS_SERVE_CONFIG";
+                      value = builtins.toJSON {
+                        TCP = {
+                          "443" = { HTTPS = true; };
+                          "80" = { HTTP = true; };
+                        };
+                        Web = {
+                          "hello-app-k3s:443" = {
+                            Handlers = {
+                              "/" = { Proxy = "http://127.0.0.1:8080"; };
+                            };
+                          };
+                          "hello-app-k3s:80" = {
+                            Handlers = {
+                              "/" = { Proxy = "http://127.0.0.1:8080"; };
+                            };
+                          };
+                        };
+                      };
+                    }
                   ];
                   securityContext.capabilities.add = [ "NET_ADMIN" ];
                   volumeMounts = [{
