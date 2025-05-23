@@ -10,7 +10,7 @@
   # K3s-specific configurations for server nodes
   services.k3s = {
     role = "server";
-    extraFlags = toString [
+    extraFlags = [
       # Server-specific flags
       "--disable-cloud-controller"
       "--disable=local-storage"
