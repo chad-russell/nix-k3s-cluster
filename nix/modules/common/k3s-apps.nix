@@ -40,7 +40,7 @@ in
       };
     };
 
-    # Hello-app deployment (simplified without variables)
+    # Minimal deployment - trying to find what's breaking
     hello-app = {
       content = {
         apiVersion = "apps/v1";
@@ -48,12 +48,9 @@ in
         metadata = {
           name = "hello-app";
           namespace = "applications";
-          labels = {
-            app = "hello-app";
-          };
         };
         spec = {
-          replicas = 2;
+          replicas = 1;
           selector = {
             matchLabels = {
               app = "hello-app";
@@ -68,14 +65,7 @@ in
             spec = {
               containers = [{
                 name = "hello-app";
-                image = "chadrussell/hello-app:latest";
-                ports = [{ 
-                  containerPort = 8080; 
-                }];
-                env = [{ 
-                  name = "PORT"; 
-                  value = "8080"; 
-                }];
+                image = "nginx";
               }];
             };
           };
